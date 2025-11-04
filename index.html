@@ -8,7 +8,6 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
 </head>
 <body>
@@ -16,7 +15,6 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
 
         // User credentials
         const USERS = {
@@ -103,6 +101,65 @@
             { metric: 'Flooding Events', value: '3', change: '-67%', trend: 'down' },
             { metric: 'Maintenance Cost', value: '$42K', change: '-38%', trend: 'down' },
         ];
+
+        // Simple Chart Components
+        const SimpleLineChart = ({ data }) => {
+            const maxValue = Math.max(...data.map(d => d.capacity));
+            const points = data.map((d, i) => {
+                const x = (i / (data.length - 1)) * 100;
+                const y = 100 - (d.capacity / maxValue * 80);
+                return `${x},${y}`;
+            }).join(' ');
+
+            return (
+                <div className="relative h-64 bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polyline
+                            points={points}
+                            fill="none"
+                            stroke="#ef4444"
+                            strokeWidth="0.5"
+                            vectorEffect="non-scaling-stroke"
+                        />
+                        {data.map((d, i) => {
+                            const x = (i / (data.length - 1)) * 100;
+                            const y = 100 - (d.capacity / maxValue * 80);
+                            return (
+                                <circle key={i} cx={x} cy={y} r="1" fill="#ef4444" />
+                            );
+                        })}
+                    </svg>
+                    <div className="flex justify-between text-xs text-gray-600 mt-2">
+                        {data.map((d, i) => i % 2 === 0 && <span key={i}>{d.time}</span>)}
+                    </div>
+                </div>
+            );
+        };
+
+        const SimpleBarChart = ({ data }) => {
+            const maxValue = Math.max(...data.map(d => d.flow));
+            
+            return (
+                <div className="relative h-64 bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm font-semibold mb-2">Flow Rate Analysis</div>
+                    <div className="flex items-end justify-around h-48 gap-2">
+                        {data.map((d, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center">
+                                <div 
+                                    className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                                    style={{ height: `${(d.flow / maxValue) * 100}%` }}
+                                    title={`${d.time}: ${d.flow} L/s`}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-600 mt-2">
+                        {data.map((d, i) => i % 2 === 0 && <span key={i}>{d.time}</span>)}
+                    </div>
+                </div>
+            );
+        };
 
         // Login Component
         const LoginPage = ({ onLogin }) => {
@@ -226,7 +283,7 @@
             );
         };
 
-        // Grainger Dashboard (Full Dashboard)
+        // Grainger Dashboard
         const GraingerDashboard = ({ user, onLogout }) => {
             const [selectedSensor, setSelectedSensor] = useState(null);
 
@@ -381,31 +438,11 @@
                         {/* Historical Trends */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                             <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold mb-4">System Capacity Trend</h2>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <LineChart data={historicalData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="time" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Line type="monotone" dataKey="capacity" stroke="#ef4444" strokeWidth={2} name="Capacity %" />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                <SimpleLineChart data={historicalData} />
                             </div>
 
                             <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold mb-4">Flow Rate Analysis</h2>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <BarChart data={historicalData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="time" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Bar dataKey="flow" fill="#3b82f6" name="Flow (L/s)" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <SimpleBarChart data={historicalData} />
                             </div>
                         </div>
 
@@ -536,7 +573,6 @@
                 return <LoginPage onLogin={handleLogin} />;
             }
 
-            // Route to appropriate page based on role
             switch (user.role) {
                 case 'dashboard':
                     return <GraingerDashboard user={user} onLogout={handleLogout} />;
@@ -552,5 +588,7 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+</body>
+</html>
 </body>
 </html>
