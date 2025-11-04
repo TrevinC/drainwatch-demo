@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+        // User credentials
+        const USERS = {
+            'Grainger': { password: 'IIT', role: 'dashboard', name: 'Grainger' },
+            'Flume': { password: 'IIT', role: 'flume', name: 'Flume' },
+            'Wabash': { password: 'IIT', role: 'wabash', name: 'Wabash' }
+        };
+
+        // Icons
+        const AlertTriangle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        );
+
+        const Droplets = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
+        );
+
+        const TrendingUp = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="17 6 23 6 23 12" />
+            </svg>
+        );
+
+        const CheckCircle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const Clock = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2" />
+            </svg>
+        );
+
+        const LogOut = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+        );
+
+        const Activity = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+        );
+
+        // Mock data
+        const sensorData = [
+            { id: 'S-001', name: 'Main St & 5th Ave', status: 'critical', capacity: 92, flow: 850, confidence: 94, lat: 34.05, lng: -118.25 },
+            { id: 'S-002', name: 'Oak Park Junction', status: 'warning', capacity: 78, flow: 620, confidence: 89, lat: 34.07, lng: -118.27 },
+            { id: 'S-003', name: 'River District Outlet', status: 'normal', capacity: 45, flow: 380, confidence: 96, lat: 34.04, lng: -118.23 },
+            { id: 'S-004', name: 'Downtown Plaza', status: 'normal', capacity: 32, flow: 210, confidence: 92, lat: 34.06, lng: -118.24 },
+            { id: 'S-005', name: 'Industrial Zone North', status: 'warning', capacity: 71, flow: 540, confidence: 87, lat: 34.08, lng: -118.26 },
+            { id: 'S-006', name: 'Residential Block 12', status: 'normal', capacity: 28, flow: 190, confidence: 95, lat: 34.03, lng: -118.28 },
+        ];
+
+        const workOrders = [
+            { id: 'WO-2401', location: 'Main St & 5th Ave', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 hours', confidence: 94 },
+            { id: 'WO-2402', location: 'Oak Park Junction', risk: 'high', issue: 'Reduced flow capacity', impact: 'Medium', eta: '6 hours', confidence: 89 },
+            { id: 'WO-2403', location: 'Industrial Zone North', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '8 hours', confidence: 87 },
+            { id: 'WO-2404', location: 'Central Pump Station', risk: 'medium', issue: 'Preventive maintenance', impact: 'Low', eta: '24 hours', confidence: 78 },
+        ];
+
+        const historicalData = [
+            { time: '00:00', capacity: 35, flow: 220 },
+            { time: '04:00', capacity: 42, flow: 310 },
+            { time: '08:00', capacity: 58, flow: 480 },
+            { time: '12:00', capacity: 68, flow: 590 },
+            { time: '16:00', capacity: 79, flow: 720 },
+            { time: '20:00', capacity: 85, flow: 810 },
+            { time: 'Now', capacity: 92, flow: 850 },
+        ];
+
+        const performanceData = [
+            { metric: 'Response Time', value: '2.3 hrs', change: '-45%', trend: 'down' },
+            { metric: 'Incidents Prevented', value: '127', change: '+82%', trend: 'up' },
+            { metric: 'Flooding Events', value: '3', change: '-67%', trend: 'down' },
+            { metric: 'Maintenance Cost', value: '$42K', change: '-38%', trend: 'down' },
+        ];
+
+        // Login Component
+        const LoginPage = ({ onLogin }) => {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [showCredentials, setShowCredentials] = useState(false);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setError('');
+
+                const user = USERS[username];
+                if (user && user.password === password) {
+                    onLogin({ username, ...user });
+                } else {
+                    setError('Invalid username or password');
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+                        <div className="text-center mb-8">
+                            <div className="flex items-center justify-center mb-4">
+                                <Droplets className="w-16 h-16 text-blue-600" />
+                            </div>
+                            <h1 className="text-3xl font-bold text-gray-800">DrainWatch</h1>
+                            <p className="text-gray-600 mt-2">Climate-Resilient Infrastructure Operations</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter username"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                    {error}
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200"
+                            >
+                                Sign In
+                            </button>
+                        </form>
+
+                        <div className="mt-6">
+                            <button
+                                onClick={() => setShowCredentials(!showCredentials)}
+                                className="text-sm text-blue-600 hover:text-blue-700 underline"
+                            >
+                                {showCredentials ? 'Hide' : 'Show'} Demo Credentials
+                            </button>
+
+                            {showCredentials && (
+                                <div className="mt-4 bg-gray-50 rounded-lg p-4 text-xs space-y-2">
+                                    <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
+                                    <div><span className="font-medium">Grainger:</span> IIT</div>
+                                    <div><span className="font-medium">Flume:</span> IIT</div>
+                                    <div><span className="font-medium">Wabash:</span> IIT</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Header Component
+        const DashboardHeader = ({ user, onLogout }) => {
+            return (
+                <header className="bg-blue-600 text-white shadow-lg">
+                    <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <Droplets className="w-8 h-8" />
+                                <div>
+                                    <h1 className="text-2xl font-bold">DrainWatch</h1>
+                                    <p className="text-blue-100 text-sm">Climate-Resilient Infrastructure Operations</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <div className="text-right">
+                                    <p className="text-sm font-medium">{user.name}</p>
+                                </div>
+                                <button
+                                    onClick={onLogout}
+                                    className="flex items-center space-x-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span>Logout</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            );
+        };
+
+        // Grainger Dashboard (Full Dashboard)
+        const GraingerDashboard = ({ user, onLogout }) => {
+            const [selectedSensor, setSelectedSensor] = useState(null);
+
+            const getStatusColor = (status) => {
+                switch (status) {
+                    case 'critical': return 'bg-red-500';
+                    case 'warning': return 'bg-yellow-500';
+                    case 'normal': return 'bg-green-500';
+                    default: return 'bg-gray-500';
+                }
+            };
+
+            const getRiskColor = (risk) => {
+                switch (risk) {
+                    case 'critical': return 'bg-red-100 text-red-800 border-red-300';
+                    case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
+                    case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+                    default: return 'bg-blue-100 text-blue-800 border-blue-300';
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <DashboardHeader user={user} onLogout={onLogout} />
+                    
+                    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+                        {/* Key Metrics */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            {performanceData.map((item, idx) => (
+                                <div key={idx} className="bg-white rounded-lg shadow p-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-gray-600">{item.metric}</p>
+                                            <p className="text-2xl font-bold mt-1">{item.value}</p>
+                                        </div>
+                                        <TrendingUp className={`w-8 h-8 ${item.trend === 'down' ? 'text-green-500 rotate-180' : 'text-red-500'}`} />
+                                    </div>
+                                    <p className={`text-sm mt-2 ${item.trend === 'down' ? 'text-green-600' : 'text-blue-600'}`}>
+                                        {item.change} vs last month
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Network Map */}
+                            <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
+                                <div className="relative bg-gray-100 rounded-lg h-96 overflow-hidden">
+                                    <div className="absolute inset-0 p-4">
+                                        {sensorData.map((sensor) => (
+                                            <div
+                                                key={sensor.id}
+                                                onClick={() => setSelectedSensor(sensor)}
+                                                className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2"
+                                                style={{
+                                                    left: `${((sensor.lng + 118.28) / 0.05) * 100}%`,
+                                                    top: `${((34.08 - sensor.lat) / 0.05) * 100}%`,
+                                                }}
+                                            >
+                                                <div className="relative">
+                                                    <div className={`w-4 h-4 rounded-full ${getStatusColor(sensor.status)} ring-4 ring-white shadow-lg`} />
+                                                    <div className={`absolute top-0 left-0 w-4 h-4 rounded-full ${getStatusColor(sensor.status)} animate-ping opacity-50`} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        
+                                        <svg className="absolute inset-0 w-full h-full opacity-20">
+                                            <defs>
+                                                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="gray" strokeWidth="1"/>
+                                                </pattern>
+                                            </defs>
+                                            <rect width="100%" height="100%" fill="url(#grid)" />
+                                        </svg>
+                                    </div>
+
+                                    {selectedSensor && (
+                                        <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-xl p-4 border-2 border-blue-500">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <h3 className="font-bold">{selectedSensor.name}</h3>
+                                                    <p className="text-sm text-gray-600">{selectedSensor.id}</p>
+                                                </div>
+                                                <button onClick={() => setSelectedSensor(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-4 mt-3">
+                                                <div>
+                                                    <p className="text-xs text-gray-600">Capacity</p>
+                                                    <p className="text-lg font-bold">{selectedSensor.capacity}%</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-600">Flow Rate</p>
+                                                    <p className="text-lg font-bold">{selectedSensor.flow} L/s</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-600">Confidence</p>
+                                                    <p className="text-lg font-bold">{selectedSensor.confidence}%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center justify-center space-x-6 mt-4">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                                        <span className="text-sm text-gray-600">Normal</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                                        <span className="text-sm text-gray-600">Warning</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                                        <span className="text-sm text-gray-600">Critical</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Priority Work Orders */}
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-bold mb-4 flex items-center">
+                                    <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" />
+                                    Priority Work Orders
+                                </h2>
+                                <div className="space-y-3">
+                                    {workOrders.map((order) => (
+                                        <div key={order.id} className={`border-2 rounded-lg p-3 ${getRiskColor(order.risk)}`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p className="font-bold text-sm">{order.id}</p>
+                                                    <p className="text-xs opacity-75">{order.location}</p>
+                                                </div>
+                                                <span className="text-xs font-semibold uppercase">{order.risk}</span>
+                                            </div>
+                                            <p className="text-sm font-medium mb-1">{order.issue}</p>
+                                            <div className="flex justify-between text-xs">
+                                                <span>Impact: {order.impact}</span>
+                                                <span>ETA: {order.eta}</span>
+                                            </div>
+                                            <div className="mt-2 bg-gray-200 rounded-full h-1.5">
+                                                <div className="bg-blue-600 h-1.5 rounded-full" style={{width: `${order.confidence}%`}} />
+                                            </div>
+                                            <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Historical Trends */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-bold mb-4">System Capacity Trend</h2>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <LineChart data={historicalData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="time" />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="capacity" stroke="#ef4444" strokeWidth={2} name="Capacity %" />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-bold mb-4">Flow Rate Analysis</h2>
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <BarChart data={historicalData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="time" />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="flow" fill="#3b82f6" name="Flow (L/s)" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* System Status Summary */}
+                        <div className="bg-white rounded-lg shadow p-6 mt-6">
+                            <h2 className="text-xl font-bold mb-4">Network Health Summary</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="text-center p-4 bg-green-50 rounded-lg">
+                                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                                    <p className="text-3xl font-bold text-green-600">3</p>
+                                    <p className="text-gray-600">Sensors Normal</p>
+                                </div>
+                                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                                    <Clock className="w-12 h-12 text-yellow-500 mx-auto mb-2" />
+                                    <p className="text-3xl font-bold text-yellow-600">2</p>
+                                    <p className="text-gray-600">Warnings Active</p>
+                                </div>
+                                <div className="text-center p-4 bg-red-50 rounded-lg">
+                                    <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                                    <p className="text-3xl font-bold text-red-600">1</p>
+                                    <p className="text-gray-600">Critical Alert</p>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // Flume Landing Page
+        const FlumeLanding = ({ user, onLogout }) => {
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <DashboardHeader user={user} onLogout={onLogout} />
+                    
+                    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+                        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+                            <Activity className="w-24 h-24 text-blue-600 mx-auto mb-6" />
+                            <h2 className="text-3xl font-bold text-gray-800 mb-4">Flume Lab Sensors</h2>
+                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
+                            <div className="max-w-2xl mx-auto text-left bg-blue-50 rounded-lg p-6">
+                                <h3 className="font-bold text-lg mb-3 text-blue-900">Planned Features:</h3>
+                                <ul className="space-y-2 text-gray-700">
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Real-time sensor data streaming from lab flume
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Live plotting of sensor readings
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Historical data visualization
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Customizable alerts and thresholds
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // Wabash Landing Page
+        const WabashLanding = ({ user, onLogout }) => {
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <DashboardHeader user={user} onLogout={onLogout} />
+                    
+                    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+                        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+                            <Activity className="w-24 h-24 text-blue-600 mx-auto mb-6" />
+                            <h2 className="text-3xl font-bold text-gray-800 mb-4">Wabash Sensor Pair</h2>
+                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
+                            <div className="max-w-2xl mx-auto text-left bg-blue-50 rounded-lg p-6">
+                                <h3 className="font-bold text-lg mb-3 text-blue-900">Planned Features:</h3>
+                                <ul className="space-y-2 text-gray-700">
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Real-time data from sensor pair
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Live plotting capabilities
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Data logging and export
+                                    </li>
+                                    <li className="flex items-start">
+                                        <span className="text-blue-600 mr-2">•</span>
+                                        Performance analytics
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // Main App Component
+        const App = () => {
+            const [user, setUser] = useState(null);
+
+            useEffect(() => {
+                const savedUser = localStorage.getItem('drainwatch_user');
+                if (savedUser) {
+                    setUser(JSON.parse(savedUser));
+                }
+            }, []);
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+                localStorage.setItem('drainwatch_user', JSON.stringify(userData));
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                localStorage.removeItem('drainwatch_user');
+            };
+
+            if (!user) {
+                return <LoginPage onLogin={handleLogin} />;
+            }
+
+            // Route to appropriate page based on role
+            switch (user.role) {
+                case 'dashboard':
+                    return <GraingerDashboard user={user} onLogout={handleLogout} />;
+                case 'flume':
+                    return <FlumeLanding user={user} onLogout={handleLogout} />;
+                case 'wabash':
+                    return <WabashLanding user={user} onLogout={handleLogout} />;
+                default:
+                    return <LoginPage onLogin={handleLogin} />;
+            }
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
