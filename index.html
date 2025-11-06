@@ -5,16 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
 
-  <!-- React first (no defer) -->
+  <!-- React + ReactDOM (ok for a demo) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  <!-- Self-hosted dependencies required by Recharts -->
-  <script src="./prop-types.min.js"></script>     <!-- provides window.PropTypes -->
-  <script src="./Recharts.min.js"></script>       <!-- provides window.Recharts -->
-
-  <!-- Your other libs AFTER the chart libs -->
+  <!-- In-browser Babel (fine for demo; build for prod later) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Tailwind CDN (fine for demo; compile for prod later) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
@@ -23,16 +21,7 @@
     @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.3; } }
     .animate-blink { animation: blink 2s ease-in-out infinite; }
   </style>
-
-  <!-- Optional: sanity log -->
-  <script>
-    window.addEventListener('load', function(){
-      console.log('PropTypes present:', !!window.PropTypes);
-      console.log('Recharts VERSION:', window.Recharts && window.Recharts.VERSION);
-    });
-  </script>
 </head>
-
 <body>
     <div id="root"></div>
 
@@ -698,77 +687,23 @@ class ChartBoundary extends React.Component {
 }
 
 // --- Flume Landing (DROP-IN) ---
-        const FlumeLanding = ({ user, onLogout }) => {
-            // === PLACE THESE LINES AT THE VERY TOP OF FlumeLanding ===
-            // Dynamic Recharts loader + guard (self-heals if CDN blocked)
-            const [rc, setRc] = React.useState(() => window.Recharts || null);
-
-            React.useEffect(() => {
-                if (rc) return;
-                // Try loading Recharts now if it wasn't ready at first paint
-                const existing = document.querySelector('script[data-recharts-umd]');
-                const loadFrom = (src) =>
-                    new Promise((resolve, reject) => {
-                        const s = document.createElement('script');
-                        s.src = src;
-                        s.setAttribute('data-recharts-umd', '1');
-                        s.onload = () => resolve();
-                        s.onerror = () => reject();
-                        document.head.appendChild(s);
-                    });
-
-                (async () => {
-                    try {
-                        if (!existing) {
-                            await loadFrom('https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js');
-                        }
-                        if (!window.Recharts) {
-                            await loadFrom('https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js');
-                        }
-                        setRc(window.Recharts || null);
-                    } catch (e) {
-                        console.error('Recharts failed to load from both CDNs', e);
-                    }
-                })();
-            }, [rc]);
-
-            // Friendly loading state until rc is ready
-            if (!rc) {
-                return (
-                    <div className="min-h-screen bg-gray-50">
-                        <DashboardHeader user={user} onLogout={onLogout} />
-                        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                            <div className="bg-white rounded-lg shadow-lg p-8">
-                                <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
-                                <p className="mt-4 text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-3">
-                                    Loading chart library… If this never resolves, a network policy or extension may be blocking cdn.jsdelivr.net and unpkg.com.
-                                </p>
-                            </div>
-                        </main>
-                    </div>
-                );
-            }
-
-            // When ready, destructure components from rc (NOT from window.*)
-            const {
-                LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-                ResponsiveContainer, ReferenceDot, ComposedChart, Scatter
-            } = rc;
-
+// Flume Landing Page - PURE SVG (no Recharts)
+const FlumeLanding = ({ user, onLogout }) => {
   const [error, setError] = React.useState(null);
   const [status, setStatus] = React.useState("Connecting...");
   const [timeSeriesData, setTimeSeriesData] = React.useState([]);
   const [spatialProfileData, setSpatialProfileData] = React.useState([]);
   const [spatialPoints, setSpatialPoints] = React.useState([]);
 
+  // --- CONFIG (unchanged) ---
   const FLUME_CONFIG = {
-    API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', // Replace
-    SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo',
+    API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', 
+    SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo', 
     SHEET1_TAB: 'Sewer Water Level Monitor',
     INSTALL_HEIGHT_CM_1: 55.0,
     S1_X_CM: 90.0,
 
-    SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA',
+    SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA', 
     SHEET2_TAB: 'Sewer Water Level Monitor - 2',
     INSTALL_HEIGHT_CM_2: 41.0,
     S2_X_CM: 259.0,
@@ -780,25 +715,25 @@ class ChartBoundary extends React.Component {
     POINTS_TO_SHOW: 60
   };
 
+  // --- helpers (unchanged) ---
   const parseSheetTime = (val) => {
     if (typeof val === 'number') {
-      const base = new Date('1899-12-30T00:00:00Z').getTime();
-      return new Date(base + val * 86400000);
+      const baseDate = new Date('1899-12-30T00:00:00Z');
+      const millis = baseDate.getTime() + (val * 86400000);
+      return new Date(millis);
     }
     const d = new Date(val);
     return isNaN(d) ? null : d;
   };
 
   const fetchSheetData = async (sheetId, tabName, installHeight) => {
-    // 3) Safe range encoding for tabs with spaces
     const range = encodeURIComponent(`'${tabName}'`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${FLUME_CONFIG.API_KEY}`;
-
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      let msg = `Google Sheets API Error: ${resp.status}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      let msg = `Google Sheets API Error: ${response.status}`;
       try {
-        const j = await resp.json();
+        const j = await response.json();
         if (j?.error?.message) msg = j.error.message;
       } catch {}
       if (/API key not valid/i.test(msg)) throw new Error("API Key is not valid. Check FLUME_CONFIG.API_KEY.");
@@ -806,13 +741,12 @@ class ChartBoundary extends React.Component {
       if (/PERMISSION_DENIED/i.test(msg)) throw new Error("Sheet is not public. Share as 'Anyone with link: Viewer'.");
       throw new Error(msg);
     }
-
-    const j = await resp.json();
-    const rows = j.values;
-    if (!rows || !rows.length) return [];
+    const json = await response.json();
+    const rows = json.values || [];
+    if (!rows.length) return [];
 
     const header = rows[0].map(h => String(h).toLowerCase());
-    const tsCol = header.indexOf("timestamp");
+    const tsCol  = header.indexOf("timestamp");
     const valCol = header.indexOf("distance to water (cm)");
     if (tsCol === -1 || valCol === -1) {
       throw new Error(`Sheet "${tabName}" missing "Timestamp" or "Distance to Water (cm)" columns.`);
@@ -820,16 +754,15 @@ class ChartBoundary extends React.Component {
 
     const out = [];
     for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const ts = parseSheetTime(row[tsCol]);
-      const dist = parseFloat(String(row[valCol]).replace(",", ""));
+      const ts = parseSheetTime(rows[i][tsCol]);
+      const dist = parseFloat(String(rows[i][valCol]).replace(",", ""));
       if (ts && !isNaN(dist)) {
         let h = installHeight - dist;
         h = Math.max(FLUME_CONFIG.YMIN_CM, Math.min(FLUME_CONFIG.YMAX_CM, h));
         out.push({ time: ts, height: h });
       }
     }
-    return out.sort((a, b) => a.time - b.time).slice(-FLUME_CONFIG.POINTS_TO_SHOW);
+    return out.sort((a,b) => a.time - b.time).slice(-FLUME_CONFIG.POINTS_TO_SHOW);
   };
 
   const refreshAllData = async () => {
@@ -839,28 +772,26 @@ class ChartBoundary extends React.Component {
 
       const [d1, d2] = await Promise.all([
         fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
-        fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2),
+        fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2)
       ]);
 
-      // Time series (merge on timestamps)
-      const allTs = new Set([...d1.map(d => d.time.getTime()), ...d2.map(d => d.time.getTime())]);
-      const combined = Array.from(allTs)
-        .sort((a, b) => a - b)
-        .map(ts => {
-          const a1 = d1.find(d => d.time.getTime() === ts);
-          const a2 = d2.find(d => d.time.getTime() === ts);
-          return {
-            name: new Date(ts).toLocaleTimeString(),
-            time: new Date(ts),
-            s1_height: a1 ? a1.height : null,
-            s2_height: a2 ? a2.height : null,
-          };
-        });
-      setTimeSeriesData(combined);
+      // Merge on timestamp for 2-series chart
+      const tsSet = new Set([...d1.map(d => d.time.getTime()), ...d2.map(d => d.time.getTime())]);
+      const merged = Array.from(tsSet).sort((a,b) => a-b).map(ts => {
+        const a1 = d1.find(d => d.time.getTime() === ts);
+        const a2 = d2.find(d => d.time.getTime() === ts);
+        return {
+          name: new Date(ts).toLocaleTimeString(),
+          time: new Date(ts),
+          s1_height: a1 ? a1.height : null,
+          s2_height: a2 ? a2.height : null,
+        };
+      });
+      setTimeSeriesData(merged);
 
-      // Spatial line (2-point line or flat if 1 point)
-      const s1_last = d1.length ? d1[d1.length - 1].height : null;
-      const s2_last = d2.length ? d2[d2.length - 1].height : null;
+      // Spatial profile + points
+      const s1_last = d1.length ? d1[d1.length-1].height : null;
+      const s2_last = d2.length ? d2[d2.length-1].height : null;
 
       const pts = [];
       if (s1_last !== null) pts.push({ x: FLUME_CONFIG.S1_X_CM, z: s1_last });
@@ -870,30 +801,26 @@ class ChartBoundary extends React.Component {
       let profile = [];
       let slope_txt = "—";
       let head_txt = "—";
-
       if (pts.length === 2) {
         const [p1, p2] = pts[0].x <= pts[1].x ? [pts[0], pts[1]] : [pts[1], pts[0]];
         const m = (p2.z - p1.z) / (p2.x - p1.x);
         const b = p1.z - m * p1.x;
         profile = [
-          { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m * 0 + b) },
-          { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m * FLUME_CONFIG.FLUME_LENGTH_CM + b) }
+          { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m*0 + b) },
+          { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m*FLUME_CONFIG.FLUME_LENGTH_CM + b) },
         ];
         const dx_m = (p2.x - p1.x) / 100.0;
         const dz_cm = p2.z - p1.z;
         slope_txt = (dz_cm / dx_m).toFixed(2);
         head_txt = dz_cm.toFixed(2);
       } else if (pts.length === 1) {
-        profile = [
-          { x: 0, z: pts[0].z },
-          { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: pts[0].z }
-        ];
+        profile = [{ x: 0, z: pts[0].z }, { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: pts[0].z }];
       }
       setSpatialProfileData(profile);
 
       const s1_stat = s1_last !== null ? `S1: ${s1_last.toFixed(1)} cm` : "S1: no data";
       const s2_stat = s2_last !== null ? `S2: ${s2_last.toFixed(1)} cm` : "S2: no data";
-      setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1_stat} | S2: ${s2_stat} | Slope: ${slope_txt} cm/m | ΔHead: ${head_txt} cm`);
+      setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1_stat} | ${s2_stat} | Slope: ${slope_txt} cm/m | ΔHead: ${head_txt} cm`);
     } catch (e) {
       console.error("Failed to fetch flume data:", e);
       setError(e.message);
@@ -913,6 +840,168 @@ class ChartBoundary extends React.Component {
     return () => clearInterval(id);
   }, []);
 
+  // ---------- Tiny SVG chart components ----------
+  const MultiLineTimeSeries = ({ data, yMin, yMax, series }) => {
+    const pad = { top: 10, right: 10, bottom: 22, left: 32 };
+    const W = 800, H = 260;
+    const innerW = W - pad.left - pad.right;
+    const innerH = H - pad.top - pad.bottom;
+
+    const xs = (i) => pad.left + (data.length <= 1 ? 0 : (i / (data.length - 1)) * innerW);
+    const ys = (v) => pad.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+
+    const yTicks = 5;
+    const yVals = Array.from({ length: yTicks + 1 }, (_, i) => yMin + (i*(yMax-yMin)/yTicks));
+
+    // build polyline points for each series (skip nulls by breaking into segments)
+    const buildSegments = (key) => {
+      const segs = [];
+      let cur = [];
+      data.forEach((d, i) => {
+        const v = d[key];
+        if (v === null || v === undefined) {
+          if (cur.length) { segs.push(cur); cur = []; }
+        } else {
+          cur.push([xs(i), ys(v)]);
+        }
+      });
+      if (cur.length) segs.push(cur);
+      return segs;
+    };
+
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-64">
+        {/* grid + y axis */}
+        {yVals.map((yv, i) => {
+          const y = ys(yv);
+          return (
+            <g key={i}>
+              <line x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+              <text x={pad.left-6} y={y} fontSize="10" fill="#555" textAnchor="end" dominantBaseline="middle">
+                {Math.round(yv)}
+              </text>
+            </g>
+          );
+        })}
+        {/* axes */}
+        <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
+        <line x1={pad.left} y1={pad.top+innerH} x2={pad.left+innerW} y2={pad.top+innerH} stroke="#666" />
+        {/* x labels (sparse for readability) */}
+        {data.map((d, i) => {
+          const show = data.length <= 10 ? true : i % Math.ceil(data.length/10) === 0;
+          if (!show) return null;
+          return (
+            <text key={i} x={xs(i)} y={pad.top+innerH+14} fontSize="10" fill="#555" textAnchor="middle">
+              {d.name}
+            </text>
+          );
+        })}
+        {/* series lines + dots */}
+        {series.map(({ key, color, label }) => (
+          <g key={key}>
+            {buildSegments(key).map((seg, j) => (
+              <polyline
+                key={j}
+                points={seg.map(([x,y]) => `${x},${y}`).join(' ')}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+              />
+            ))}
+            {data.map((d, i) => {
+              const v = d[key];
+              if (v == null) return null;
+              return (
+                <circle key={i} cx={xs(i)} cy={ys(v)} r="2.5" fill={color}>
+                  <title>{`${label} @ ${d.name}: ${v.toFixed(1)} cm`}</title>
+                </circle>
+              );
+            })}
+          </g>
+        ))}
+        {/* legend */}
+        <g>
+          {series.map(({ label, color }, idx) => (
+            <g key={label} transform={`translate(${pad.left + idx*140}, ${pad.top})`}>
+              <rect x="0" y="-8" width="12" height="4" fill={color} />
+              <text x="18" y="-6" fontSize="12" fill="#333">{label}</text>
+            </g>
+          ))}
+        </g>
+        {/* y-axis label */}
+        <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">
+          Water Height (cm)
+        </text>
+      </svg>
+    );
+  };
+
+  const SpatialProfileChart = ({ profile, points, yMin, yMax, xMax }) => {
+    const pad = { top: 10, right: 10, bottom: 28, left: 40 };
+    const W = 800, H = 240;
+    const innerW = W - pad.left - pad.right;
+    const innerH = H - pad.top - pad.bottom;
+
+    const xs = (x) => pad.left + (x / xMax) * innerW;
+    const ys = (z) => pad.top + (1 - (z - yMin) / (yMax - yMin)) * innerH;
+
+    const yTicks = 5;
+    const yVals = Array.from({ length: yTicks + 1 }, (_, i) => yMin + (i*(yMax-yMin)/yTicks));
+    const xTicks = 6;
+    const xVals = Array.from({ length: xTicks + 1 }, (_, i) => Math.round((i*xMax/xTicks)));
+
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-72">
+        {/* grid */}
+        {yVals.map((yv, i) => {
+          const y = ys(yv);
+          return <line key={'y'+i} x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" />;
+        })}
+        {xVals.map((xv, i) => {
+          const x = xs(xv);
+          return <line key={'x'+i} x1={x} y1={pad.top} x2={x} y2={pad.top+innerH} stroke="#f0f0f0" />;
+        })}
+        {/* axes */}
+        <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
+        <line x1={pad.left} y1={pad.top+innerH} x2={pad.left+innerW} y2={pad.top+innerH} stroke="#666" />
+        {/* labels */}
+        {yVals.map((yv,i)=>(
+          <text key={i} x={pad.left-6} y={ys(yv)} fontSize="10" fill="#555" textAnchor="end" dominantBaseline="middle">
+            {Math.round(yv)}
+          </text>
+        ))}
+        {xVals.map((xv,i)=>(
+          <text key={i} x={xs(xv)} y={pad.top+innerH+16} fontSize="10" fill="#555" textAnchor="middle">
+            {xv}
+          </text>
+        ))}
+        {/* profile line */}
+        {profile.length >= 2 && (
+          <polyline
+            points={profile.map(p => `${xs(p.x)},${ys(p.z)}`).join(' ')}
+            fill="none"
+            stroke="#8884d8"
+            strokeWidth="2"
+          />
+        )}
+        {/* sensor points */}
+        {points.map((p, i) => (
+          <circle key={i} cx={xs(p.x)} cy={ys(p.z)} r="4" fill="#ff0000">
+            <title>{`Sensor @ ${Math.round(p.x)} cm: ${p.z.toFixed(1)} cm`}</title>
+          </circle>
+        ))}
+        {/* axis titles */}
+        <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">
+          Water Height (cm)
+        </text>
+        <text x={pad.left + innerW/2} y={pad.top+innerH+24} fontSize="12" fill="#333" textAnchor="middle">
+          Position along flume (cm)
+        </text>
+      </svg>
+    );
+  };
+  // ---------- end tiny charts ----------
+
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader user={user} onLogout={onLogout} />
@@ -930,68 +1019,37 @@ class ChartBoundary extends React.Component {
             {status}
           </div>
 
-          {/* Time Series */}
-          <ChartBoundary>
-            <div className="mb-8">
-              <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Live Water Level</h3>
-              <div className="w-full h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis
-                      domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}
-                      label={{ value: 'Water Height (cm)', angle: -90, position: 'insideLeft' }}
-                    />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" name="Site 1 (cm)" dataKey="s1_height" stroke="#8884d8" strokeWidth={2} dot={false} connectNulls />
-                    <Line type="monotone" name="Site 2 (cm)" dataKey="s2_height" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </ChartBoundary>
+          {/* Time Series (two lines) */}
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Live Water Level</h3>
+            <MultiLineTimeSeries
+              data={timeSeriesData}
+              yMin={FLUME_CONFIG.YMIN_CM}
+              yMax={FLUME_CONFIG.YMAX_CM}
+              series={[
+                { key: 's1_height', color: '#8884d8', label: 'Site 1 (cm)' },
+                { key: 's2_height', color: '#82ca9d', label: 'Site 2 (cm)' },
+              ]}
+            />
+          </div>
 
           {/* Spatial Profile */}
-          <ChartBoundary>
-            <div>
-              <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
-              <div className="w-full h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={spatialProfileData} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="x"
-                      type="number"
-                      domain={[0, FLUME_CONFIG.FLUME_LENGTH_CM]}
-                      label={{ value: 'Position along flume (cm)', position: 'insideBottom', offset: -10 }}
-                    />
-                    <YAxis
-                      dataKey="z"
-                      type="number"
-                      domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}
-                      label={{ value: 'Water Height (cm)', angle: -90, position: 'insideLeft' }}
-                    />
-                    <Tooltip />
-                    <Legend verticalAlign="top" />
-                    <Line type="linear" name="Water Profile" dataKey="z" stroke="#8884d8" strokeWidth={2} dot={false} />
-                    {/* Sensor points: either ReferenceDot on the line OR a Scatter layer if you prefer */}
-                    {spatialPoints.map((p, i) => (
-                      <ReferenceDot key={i} x={p.x} y={p.z} r={4} fill="#ff0000" stroke="none" />
-                    ))}
-                    {/* Or, use Scatter if you prefer: */}
-                    {/* <Scatter name="Sensor Points" data={spatialPoints} fill="#ff0000" /> */}
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </ChartBoundary>
+          <div>
+            <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
+            <SpatialProfileChart
+              profile={spatialProfileData}
+              points={spatialPoints}
+              yMin={FLUME_CONFIG.YMIN_CM}
+              yMax={FLUME_CONFIG.YMAX_CM}
+              xMax={FLUME_CONFIG.FLUME_LENGTH_CM}
+            />
+          </div>
         </div>
       </main>
     </div>
   );
 };
+
         // Wabash Landing Page
         const WabashLanding = ({ user, onLogout }) => {
             return (
