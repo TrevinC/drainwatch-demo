@@ -8,7 +8,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+    <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
     <style>
         @keyframes blink {
             0%, 50%, 100% { opacity: 1; }
@@ -84,7 +84,7 @@
             );
         };
 
-        // Sensor coordinates from last fix
+        // Sensor coordinates
         const sensorData = [
             { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 58, y: 45, battery: 88 },
             { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 78, y: 25, battery: 84 },
@@ -104,15 +104,15 @@
             { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 68, y: 25, battery: 83 },
         ];
         
-        // *** WORK ORDER FIX: New (x, y) coordinates to place alerts BETWEEN sensors ***
+        // *** WORK ORDER FIX: Y-coordinates shifted vertically into streets ***
         const workOrders = [
             // This one STAYS on the sensor, since it's a sensor error
             { id: 'WO-2401', location: 'MLK & E 31st St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', x: 92, y: 25 }, 
-            // These are moved to be "near" the sensors
-            { id: 'WO-2402', location: 'Near Michigan & 32nd', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 73, y: 35 },
-            { id: 'WO-2403', location: 'Near Federal & 34th', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 73, y: 55 },
-            { id: 'WO-2404', location: 'Near Indiana & 35th', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 80.5, y: 65 },
-            { id: 'WO-2405', location: 'Near State & 34th', risk: 'medium', issue: 'Reduced flow capacity', impact: 'Low', eta: '5 days', confidence: 78, x: 63, y: 55 },
+            // These are moved vertically into the "street"
+            { id: 'WO-2402', location: 'Near Michigan & 32nd', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 78, y: 30 },
+            { id: 'WO-2403', location: 'Near Federal & 34th', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 68, y: 50 },
+            { id: 'WO-2404', location: 'Near Indiana & 35th', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 83, y: 60 },
+            { id: 'WO-2405', location: 'Near State & 34th', risk: 'medium', issue: 'Reduced flow capacity', impact: 'Low', eta: '5 days', confidence: 78, x: 58, y: 50 },
         ];
 
         // Calculate average capacity from working sensors for historical trend
@@ -138,7 +138,8 @@
 
         // New SimpleLineChart Component
         const SimpleLineChart = ({ data }) => {
-            const maxValue = Math.max(...data.map(d => d.capacity));
+            // Y-AXIS FIX: Set maxValue to 100 and minValue to 0 for a 0-100% scale
+            const maxValue = 100;
             const minValue = 0;
             const range = maxValue - minValue;
 
@@ -162,16 +163,17 @@
 
             // Create Y-axis labels (0%, 25%, 50%, 75%, 100%)
             const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
-                const value = Math.round(maxValue * pct);
+                const value = Math.round(maxValue * pct); 
                 const y = getY(value);
                 return { value: `${value}%`, y };
             });
 
             return (
-                <div className="relative h-64 bg-gray-50 rounded-lg p-4">
+                // *** HEIGHT FIX: Increased container height to h-72 ***
+                <div className="relative h-72 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
-                    {/* *** CHART FIX: Removed preserveAspectRatio="none" *** */}
-                    <svg className="w-full h-48" viewBox="0 0 100 100">
+                    {/* *** HEIGHT FIX: Increased SVG height to h-64 *** */}
+                    <svg className="w-full h-64" viewBox="0 0 100 100">
                         {/* Y-axis labels and grid lines */}
                         {yAxisLabels.map((label, i) => (
                             <g key={i}>
@@ -255,7 +257,7 @@
                 return padding.top + (1 - value / maxValue) * chartHeight;
             };
 
-            // Create Y-axis labels (0, 25%, 50%, 75%, 100%)
+            // Create Y-axis labels
             const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
                 const value = Math.round(maxValue * pct);
                 const y = getY(value);
@@ -263,10 +265,11 @@
             });
             
             return (
-                <div className="relative h-64 bg-gray-50 rounded-lg p-4">
+                // *** HEIGHT FIX: Increased container height to h-72 ***
+                <div className="relative h-72 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
-                    {/* *** CHART FIX: Removed preserveAspectRatio="none" *** */}
-                    <svg className="w-full h-48" viewBox="0 0 100 100">
+                    {/* *** HEIGHT FIX: Increased SVG height to h-64 *** */}
+                    <svg className="w-full h-64" viewBox="0 0 100 100">
                         {/* Y-axis labels and grid lines */}
                         {yAxisLabels.map((label, i) => (
                             <g key={i}>
@@ -283,6 +286,9 @@
                         
                         {/* X-axis labels */}
                         {data.map((d, i) => {
+                            // X-AXIS FIX: Only show every other label (i % 2 === 0)
+                            if (i % 2 !== 0) return null; 
+
                             const x = padding.left + i * (barWidth + barSpacing) + (barWidth / 2) + (barSpacing / 2);
                             return (
                                 <text
@@ -426,9 +432,9 @@
                             {showCredentials && (
                                 <div className="mt-4 rounded-lg p-4 text-xs space-y-2" style={{backgroundColor: BRAND_COLORS.light}}>
                                     <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
-                                    <div><span className="font-medium">Grainger:</span> IIT</div>
-                                    <div><span className="font-medium">Flume:</span> IIT</div>
-                                    <div><span className="font-medium">Wabash:</span> IIT</div>
+                                    <div><span className="font-medium">Grainger -</span>Password : IIT</div>
+                                    <div><span className="font-medium">Flume -</span>Password : IIT</div>
+                                    <div><span className="font-medium">Wabash -</span>Password : IIT</div>
                                 </div>
                             )}
                         </div>
@@ -737,7 +743,7 @@
                         <div className="bg-white rounded-lg shadow-lg p-12 text-center">
                             <Activity className="w-24 h-24 mx-auto mb-6" style={{color: BRAND_COLORS.primary}} />
                             <h2 className="text-3xl font-bold text-gray-800 mb-4">Wabash Sensor Pair</h2>
-                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</a:p>
+                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
                             <div className="max-w-2xl mx-auto text-left rounded-lg p-6" style={{backgroundColor: BRAND_COLORS.light}}>
                                 <h3 className="font-bold text-lg mb-3" style={{color: BRAND_COLORS.dark}}>Planned Features:</h3>
                                 <ul className="space-y-2 text-gray-700">
