@@ -5,13 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
 
-  <!-- Allow calling Google Sheets from your own page (won’t affect github.com repo viewer) -->
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self';
-                 connect-src 'self' https://sheets.googleapis.com https://docs.google.com;
-                 script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.tailwindcss.com;
-                 style-src 'self' 'unsafe-inline';
-                 img-src 'self' data:;">
+  <!-- CSP removed for GitHub Pages compatibility -->
 
   <!-- React + ReactDOM (UMD) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -453,7 +447,7 @@
       const [spatialPoints, setSpatialPoints] = useState([]);
 
       const FLUME_CONFIG = {
-        API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', // <-- paste your key
+        API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo',
         SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo',
         SHEET1_TAB: 'Sewer Water Level Monitor',
         INSTALL_HEIGHT_CM_1: 55.0,
@@ -515,14 +509,17 @@
         return out.slice(-FLUME_CONFIG.POINTS_TO_SHOW);
       };
 
-      // const refreshAllData = async () => {
-      //   try {
-      //     if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'Something dumb') {
-      //       const msg = "API_KEY is not set. Add it in FLUME_CONFIG.";
-      //       setError(msg); setStatus(`Error: ${msg}`); return;
-      //     }
-      //     setError(null);
-      //     setStatus("Fetching data...");
+      const refreshAllData = async () => {
+        try {
+          // API key validation removed - it was blocking valid keys
+          /*
+          if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
+            const msg = "API_KEY is not set. Add it in FLUME_CONFIG.";
+            setError(msg); setStatus(`Error: ${msg}`); return;
+          }
+          */
+          setError(null);
+          setStatus("Fetching data...");
 
           const [d1, d2] = await Promise.all([
             fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
@@ -581,13 +578,15 @@
         return () => clearInterval(id);
       }, []);
 
-      // Small SVG chart components
+      // Small SVG chart components with filled areas
       const MultiLineTimeSeries = ({ data, yMin, yMax, series }) => {
-        const pad = { top: 10, right: 10, bottom: 22, left: 32 };
-        const W = 800, H = 260, innerW = W - pad.left - pad.right, innerH = H - pad.top - pad.bottom;
+        const pad = { top: 30, right: 10, bottom: 22, left: 32 };
+        const W = 800, H = 300;
+        const innerW = W - pad.left - pad.right, innerH = H - pad.top - pad.bottom;
         const xs = (i) => pad.left + (data.length <= 1 ? 0 : (i / (data.length - 1)) * innerW);
         const ys = (v) => pad.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
         const yTicks = 5, yVals = Array.from({length: yTicks+1}, (_,i)=>yMin + i*(yMax-yMin)/yTicks);
+        
         const buildSegments = (key) => {
           const segs=[], cur=[];
           data.forEach((d,i)=>{ const v=d[key];
@@ -597,8 +596,32 @@
           if (cur.length) segs.push(cur);
           return segs;
         };
+        
+        // Build filled area polygons
+        const buildFilledAreas = (key, fillColor) => {
+          const segs = buildSegments(key);
+          const baselineY = ys(yMin);
+          return segs.map((seg, j) => {
+            if (seg.length < 2) return null;
+            // Create polygon: line points + baseline points in reverse
+            const points = [
+              ...seg,
+              [seg[seg.length - 1][0], baselineY],
+              [seg[0][0], baselineY]
+            ];
+            return (
+              <polygon
+                key={j}
+                points={points.map(([x,y]) => `${x},${y}`).join(' ')}
+                fill={fillColor}
+                opacity="0.3"
+              />
+            );
+          });
+        };
+        
         return (
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-64">
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-72">
             {yVals.map((yv,i)=>{const y=ys(yv); return (
               <g key={i}>
                 <line x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" />
@@ -610,14 +633,22 @@
             {data.map((d,i)=>{ const show = data.length<=10 || i%Math.ceil(data.length/10)===0;
               return show ? <text key={i} x={xs(i)} y={pad.top+innerH+14} fontSize="10" fill="#555" textAnchor="middle">{d.name}</text> : null;
             })}
+            
             {series.map(({key,color,label})=>(
               <g key={key}>
+                {/* Filled area */}
+                {buildFilledAreas(key, color)}
+                
+                {/* Line on top of fill */}
                 {buildSegments(key).map((seg,j)=>
                   <polyline key={j} points={seg.map(([x,y])=>`${x},${y}`).join(' ')} fill="none" stroke={color} strokeWidth="2" />
                 )}
+                
+                {/* Dots on top */}
                 {data.map((d,i)=> d[key]==null?null:<circle key={i} cx={xs(i)} cy={ys(d[key])} r="2.5" fill={color}><title>{`${label} @ ${d.name}: ${d[key].toFixed(1)} cm`}</title></circle>)}
               </g>
             ))}
+            
             <g>
               {series.map(({label,color},idx)=>(
                 <g key={label} transform={`translate(${pad.left + idx*140}, ${pad.top})`}>
@@ -632,14 +663,24 @@
       };
 
       const SpatialProfileChart = ({ profile, points, yMin, yMax, xMax }) => {
-        const pad = { top: 10, right: 10, bottom: 28, left: 40 };
-        const W = 800, H = 240, innerW = W - pad.left - pad.right, innerH = H - pad.top - pad.bottom;
+        const pad = { top: 30, right: 10, bottom: 28, left: 40 };
+        const W = 800, H = 280;
+        const innerW = W - pad.left - pad.right, innerH = H - pad.top - pad.bottom;
         const xs = (x) => pad.left + (x / xMax) * innerW;
         const ys = (z) => pad.top + (1 - (z - yMin) / (yMax - yMin)) * innerH;
         const yTicks = 5, yVals = Array.from({length:yTicks+1},(_,i)=>yMin + i*(yMax-yMin)/yTicks);
         const xTicks = 6, xVals = Array.from({length:xTicks+1},(_,i)=>Math.round(i*xMax/xTicks));
+        
+        // Create filled area polygon
+        const baselineY = ys(yMin);
+        const fillPoints = profile.length >= 2 ? [
+          ...profile.map(p => [xs(p.x), ys(p.z)]),
+          [xs(profile[profile.length - 1].x), baselineY],
+          [xs(profile[0].x), baselineY]
+        ] : [];
+        
         return (
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-72">
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-80">
             {yVals.map((yv,i)=>{const y=ys(yv); return <line key={'y'+i} x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" />;})}
             {xVals.map((xv,i)=>{const x=xs(xv); return <line key={'x'+i} x1={x} y1={pad.top} x2={x} y2={pad.top+innerH} stroke="#f0f0f0" />;})}
             <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
@@ -650,8 +691,22 @@
             {xVals.map((xv,i)=>
               <text key={i} x={xs(xv)} y={pad.top+innerH+16} fontSize="10" fill="#555" textAnchor="middle">{xv}</text>
             )}
-            {profile.length>=2 && <polyline points={profile.map(p=>`${xs(p.x)},${ys(p.z)}`).join(' ')} fill="none" stroke="#8884d8" strokeWidth="2" />}
-            {points.map((p,i)=><circle key={i} cx={xs(p.x)} cy={ys(p.z)} r="4" fill="#ff0000"><title>{`Sensor @ ${Math.round(p.x)} cm: ${p.z.toFixed(1)} cm`}</title></circle>)}
+            
+            {/* Filled area */}
+            {fillPoints.length > 0 && (
+              <polygon 
+                points={fillPoints.map(([x,y]) => `${x},${y}`).join(' ')} 
+                fill="#3b82f6" 
+                opacity="0.3" 
+              />
+            )}
+            
+            {/* Line on top */}
+            {profile.length>=2 && <polyline points={profile.map(p=>`${xs(p.x)},${ys(p.z)}`).join(' ')} fill="none" stroke="#3b82f6" strokeWidth="2" />}
+            
+            {/* Sensor dots */}
+            {points.map((p,i)=><circle key={i} cx={xs(p.x)} cy={ys(p.z)} r="4" fill="#ef4444"><title>{`Sensor @ ${Math.round(p.x)} cm: ${p.z.toFixed(1)} cm`}</title></circle>)}
+            
             <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">Water Height (cm)</text>
             <text x={pad.left + innerW/2} y={pad.top+innerH+24} fontSize="12" fill="#333" textAnchor="middle">Position along flume (cm)</text>
           </svg>
@@ -671,18 +726,35 @@
                    style={{ backgroundColor: error ? '#fff0f0' : BRAND_COLORS.light, color: error ? 'red' : BRAND_COLORS.dark }}>
                 {status}
               </div>
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Live Water Level</h3>
-                <MultiLineTimeSeries
-                  data={timeSeriesData}
-                  yMin={FLUME_CONFIG.YMIN_CM}
-                  yMax={FLUME_CONFIG.YMAX_CM}
-                  series={[
-                    { key: 's1_height', color: '#8884d8', label: 'Site 1 (cm)' },
-                    { key: 's2_height', color: '#82ca9d', label: 'Site 2 (cm)' },
-                  ]}
-                />
+              
+              {/* Two plots side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div>
+                  <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Site 1 Water Level</h3>
+                  <MultiLineTimeSeries
+                    data={timeSeriesData}
+                    yMin={FLUME_CONFIG.YMIN_CM}
+                    yMax={FLUME_CONFIG.YMAX_CM}
+                    series={[
+                      { key: 's1_height', color: '#3b82f6', label: 'Site 1 (cm)' }
+                    ]}
+                  />
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Site 2 Water Level</h3>
+                  <MultiLineTimeSeries
+                    data={timeSeriesData}
+                    yMin={FLUME_CONFIG.YMIN_CM}
+                    yMax={FLUME_CONFIG.YMAX_CM}
+                    series={[
+                      { key: 's2_height', color: '#10b981', label: 'Site 2 (cm)' }
+                    ]}
+                  />
+                </div>
               </div>
+              
+              {/* Full width spatial plot below */}
               <div>
                 <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
                 <SpatialProfileChart
