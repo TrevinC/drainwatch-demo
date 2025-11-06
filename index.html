@@ -5,24 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
 
-  <!-- React first (blocking, no defer) -->
+  <!-- React first (no defer) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  <!-- Recharts UMD (pinned) -->
-  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
-  <!-- Fallback if jsDelivr is blocked -->
-  <script>
-    if (!window.Recharts) {
-      var s = document.createElement('script');
-      s.src = 'https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js';
-      s.onload = function(){ console.log('Recharts loaded from unpkg:', window.Recharts && window.Recharts.VERSION); };
-      s.onerror = function(){ console.warn('Recharts failed to load from both CDNs'); };
-      document.head.appendChild(s);
-    }
-  </script>
+  <!-- Self-hosted dependencies required by Recharts -->
+  <script src="./prop-types.min.js"></script>     <!-- provides window.PropTypes -->
+  <script src="./Recharts.min.js"></script>       <!-- provides window.Recharts -->
 
-  <!-- Babel & Tailwind AFTER libs -->
+  <!-- Your other libs AFTER the chart libs -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -33,13 +24,15 @@
     .animate-blink { animation: blink 2s ease-in-out infinite; }
   </style>
 
-  <!-- Optional: quick smoke test in console -->
+  <!-- Optional: sanity log -->
   <script>
     window.addEventListener('load', function(){
+      console.log('PropTypes present:', !!window.PropTypes);
       console.log('Recharts VERSION:', window.Recharts && window.Recharts.VERSION);
     });
   </script>
 </head>
+
 
 <body>
     <div id="root"></div>
