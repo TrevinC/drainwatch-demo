@@ -661,296 +661,293 @@
         };
 
         // Flume Landing Page - WITH LIVE PLOTS
-        const FlumeLanding = ({ user, onLogout }) => {
-            // Get all Recharts components
-            const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label, Scatter } = Recharts;
+// --- ErrorBoundary so charts can't take the whole app down ---
+class ChartBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  componentDidCatch(error, info) {
+    // Keep it visible for debugging but don't crash the app
+    console.error("Chart error:", error, info);
+    this.setState({ hasError: true, error });
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+          Chart failed to render: {String(this.state.error?.message || this.state.error)}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
-            // --- CONFIGURATION ---
-            const FLUME_CONFIG = {
-                // *** PASTE YOUR *NEW* API KEY HERE (as a simple string) ***
-                API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', 
-                
-                // From SHEET1_URL
-                SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo', 
-                SHEET1_TAB: 'Sewer Water Level Monitor',
-                INSTALL_HEIGHT_CM_1: 55.0,
-                S1_X_CM: 90.0,
-                
-                // From SHEET2_URL
-                SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA', 
-                SHEET2_TAB: 'Sewer Water Level Monitor - 2',
-                INSTALL_HEIGHT_CM_2: 41.0,
-                S2_X_CM: 259.0,
+// --- Flume Landing (DROP-IN) ---
+const FlumeLanding = ({ user, onLogout }) => {
+  // 1) HARD GUARD for Recharts UMD
+  const RC = window.Recharts;
+  if (!RC) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader user={user} onLogout={onLogout} />
+        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-2xl font-bold mb-2">Live Flume Lab Monitor</h2>
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
+              Recharts failed to load (window.Recharts is undefined). Make sure this script is in your
+              &lt;head&gt; before this code: <code>https://unpkg.com/recharts/umd/Recharts.min.js</code>.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
-                FLUME_LENGTH_CM: 305.0,
-                YMIN_CM: 0.0,
-                YMAX_CM: 45.0,
-                POLL_EVERY_SECONDS: 2, // Set to 2 seconds for demo
-                POINTS_TO_SHOW: 60
-            };
-            // --- END CONFIG ---
+  // 2) Import the pieces we actually use
+  const {
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    ReferenceDot, ComposedChart, Scatter
+  } = RC;
 
-            const [error, setError] = useState(null);
-            const [status, setStatus] = useState("Connecting...");
-            const [timeSeriesData, setTimeSeriesData] = useState([]);
-            const [spatialProfileData, setSpatialProfileData] = useState([]);
-            const [spatialPoints, setSpatialPoints] = useState([]);
+  const [error, setError] = React.useState(null);
+  const [status, setStatus] = React.useState("Connecting...");
+  const [timeSeriesData, setTimeSeriesData] = React.useState([]);
+  const [spatialProfileData, setSpatialProfileData] = React.useState([]);
+  const [spatialPoints, setSpatialPoints] = React.useState([]);
 
-            // Helper function to parse Google's timestamp (serial or string)
-            const parseSheetTime = (val) => {
-                if (typeof val === 'number') {
-                    // Google Sheets Serial Date (days since 1899-12-30)
-                    const baseDate = new Date('1899-12-30T00:00:00Z');
-                    const millis = baseDate.getTime() + (val * 24 * 60 * 60 * 1000);
-                    return new Date(millis);
-                }
-                try {
-                    // Try to parse it as a standard date string
-                    const d = new Date(val);
-                    if (!isNaN(d)) return d;
-                } catch (e) {}
-                return null;
-            };
+  const FLUME_CONFIG = {
+    API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', // Replace
+    SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo',
+    SHEET1_TAB: 'Sewer Water Level Monitor',
+    INSTALL_HEIGHT_CM_1: 55.0,
+    S1_X_CM: 90.0,
 
-            // This function fetches and parses the data, just like the Python script
-            const fetchSheetData = async (sheetId, tabName, installHeight) => {
-                
-                // *** FIX: REMOVED THE BAD 'if' CHECK THAT WAS HERE ***
-                
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tabName}?key=${FLUME_CONFIG.API_KEY}`;
-                
-                const response = await fetch(url);
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    const errorMessage = errorData?.error?.message || `Google Sheets API Error: ${response.status}`;
-                    // Add better error handling for common mistakes
-                    if (errorMessage.includes("API key not valid")) {
-                        throw new Error("API Key is not valid. Check the key in FLUME_CONFIG.");
-                    }
-                     if (errorMessage.includes("Unable to parse range")) {
-                        throw new Error(`Sheet tab name "${tabName}" not found or incorrect.`);
-                    }
-                    if (errorMessage.includes("PERMISSION_DENIED")) {
-                        throw new Error("Sheet is not public. Set 'Anyone with the link' to 'Viewer'.");
-                    }
-                    throw new Error(errorMessage);
-                }
-                const json = await response.json();
-                const rows = json.values;
+    SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA',
+    SHEET2_TAB: 'Sewer Water Level Monitor - 2',
+    INSTALL_HEIGHT_CM_2: 41.0,
+    S2_X_CM: 259.0,
 
-                if (!rows || rows.length === 0) {
-                    return [];
-                }
+    FLUME_LENGTH_CM: 305.0,
+    YMIN_CM: 0.0,
+    YMAX_CM: 45.0,
+    POLL_EVERY_SECONDS: 2,
+    POINTS_TO_SHOW: 60
+  };
 
-                const header = rows[0].map(h => h.toLowerCase());
-                const tsCol = header.indexOf("timestamp");
-                const valCol = header.indexOf("distance to water (cm)");
+  const parseSheetTime = (val) => {
+    if (typeof val === 'number') {
+      const base = new Date('1899-12-30T00:00:00Z').getTime();
+      return new Date(base + val * 86400000);
+    }
+    const d = new Date(val);
+    return isNaN(d) ? null : d;
+  };
 
-                if (tsCol === -1 || valCol === -1) {
-                    throw new Error(`Sheet "${tabName}" missing required columns: "Timestamp" or "Distance to Water (cm)".`);
-                }
+  const fetchSheetData = async (sheetId, tabName, installHeight) => {
+    // 3) Safe range encoding for tabs with spaces
+    const range = encodeURIComponent(`'${tabName}'`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${FLUME_CONFIG.API_KEY}`;
 
-                const data = [];
-                for (let i = 1; i < rows.length; i++) {
-                    const row = rows[i];
-                    const ts = parseSheetTime(row[tsCol]);
-                    const dist = parseFloat(String(row[valCol]).replace(",", ""));
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      let msg = `Google Sheets API Error: ${resp.status}`;
+      try {
+        const j = await resp.json();
+        if (j?.error?.message) msg = j.error.message;
+      } catch {}
+      if (/API key not valid/i.test(msg)) throw new Error("API Key is not valid. Check FLUME_CONFIG.API_KEY.");
+      if (/Unable to parse range/i.test(msg)) throw new Error(`Sheet tab "${tabName}" not found or incorrect.`);
+      if (/PERMISSION_DENIED/i.test(msg)) throw new Error("Sheet is not public. Share as 'Anyone with link: Viewer'.");
+      throw new Error(msg);
+    }
 
-                    if (ts && !isNaN(dist)) {
-                        let height = (installHeight - dist);
-                        // Clamp to [YMIN, YMAX]
-                        height = Math.max(FLUME_CONFIG.YMIN_CM, Math.min(FLUME_CONFIG.YMAX_CM, height));
-                        
-                        data.push({
-                            time: ts,
-                            height: height
-                        });
-                    }
-                }
+    const j = await resp.json();
+    const rows = j.values;
+    if (!rows || !rows.length) return [];
 
-                // Sort by time and get the tail
-                return data
-                    .sort((a, b) => a.time - b.time)
-                    .slice(-FLUME_CONFIG.POINTS_TO_SHOW);
-            };
+    const header = rows[0].map(h => String(h).toLowerCase());
+    const tsCol = header.indexOf("timestamp");
+    const valCol = header.indexOf("distance to water (cm)");
+    if (tsCol === -1 || valCol === -1) {
+      throw new Error(`Sheet "${tabName}" missing "Timestamp" or "Distance to Water (cm)" columns.`);
+    }
 
-            // The main function to refresh all data
-            const refreshAllData = async () => {
-                try {
-                    setError(null);
-                    setStatus("Fetching data...");
+    const out = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const ts = parseSheetTime(row[tsCol]);
+      const dist = parseFloat(String(row[valCol]).replace(",", ""));
+      if (ts && !isNaN(dist)) {
+        let h = installHeight - dist;
+        h = Math.max(FLUME_CONFIG.YMIN_CM, Math.min(FLUME_CONFIG.YMAX_CM, h));
+        out.push({ time: ts, height: h });
+      }
+    }
+    return out.sort((a, b) => a.time - b.time).slice(-FLUME_CONFIG.POINTS_TO_SHOW);
+  };
 
-                    // Fetch both sheets in parallel
-                    const [data1, data2] = await Promise.all([
-                        fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
-                        fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2)
-                    ]);
+  const refreshAllData = async () => {
+    try {
+      setError(null);
+      setStatus("Fetching data...");
 
-                    // --- 1. Process Time Series Data ---
-                    const allTimestamps = new Set([...data1.map(d => d.time.getTime()), ...data2.map(d => d.time.getTime())]);
-                    const combinedData = Array.from(allTimestamps)
-                        .sort((a, b) => a - b)
-                        .map(ts => {
-                            const d1 = data1.find(d => d.time.getTime() === ts);
-                            const d2 = data2.find(d => d.time.getTime() === ts);
-                            return {
-                                name: new Date(ts).toLocaleTimeString(), // X-axis label
-                                time: new Date(ts),
-                                s1_height: d1 ? d1.height : null,
-                                s2_height: d2 ? d2.height : null,
-                            };
-                        });
-                    
-                    setTimeSeriesData(combinedData);
-                    
-                    // --- 2. Process Spatial Profile Data ---
-                    const s1_last = data1.length > 0 ? data1[data1.length - 1].height : null;
-                    const s2_last = data2.length > 0 ? data2[data2.length - 1].height : null;
-                    
-                    const points = [];
-                    if(s1_last !== null) points.push({ x: FLUME_CONFIG.S1_X_CM, z: s1_last });
-                    if(s2_last !== null) points.push({ x: FLUME_CONFIG.S2_X_CM, z: s2_last });
-                    
-                    setSpatialPoints(points); // Just the sensor points
+      const [d1, d2] = await Promise.all([
+        fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
+        fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2),
+      ]);
 
-                    let profile = [];
-                    let slope_cm_per_m_txt = "—";
-                    let head_diff_txt = "—";
-                    
-                    if (points.length === 2) {
-                        const [p1, p2] = points.sort((a,b) => a.x - b.x); // Ensure p1 is upstream
-                        const m = (p2.z - p1.z) / (p2.x - p1.x); // cm/cm
-                        const b = p1.z - m * p1.x;
-                        
-                        profile = [
-                            { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m * 0 + b) },
-                            { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m * FLUME_CONFIG.FLUME_LENGTH_CM + b) }
-                        ];
-                        
-                        const dx_m = (p2.x - p1.x) / 100.0;
-                        const dz_cm = p2.z - p1.z;
-                        slope_cm_per_m_txt = (dz_cm / dx_m).toFixed(2);
-                        head_diff_txt = dz_cm.toFixed(2);
+      // Time series (merge on timestamps)
+      const allTs = new Set([...d1.map(d => d.time.getTime()), ...d2.map(d => d.time.getTime())]);
+      const combined = Array.from(allTs)
+        .sort((a, b) => a - b)
+        .map(ts => {
+          const a1 = d1.find(d => d.time.getTime() === ts);
+          const a2 = d2.find(d => d.time.getTime() === ts);
+          return {
+            name: new Date(ts).toLocaleTimeString(),
+            time: new Date(ts),
+            s1_height: a1 ? a1.height : null,
+            s2_height: a2 ? a2.height : null,
+          };
+        });
+      setTimeSeriesData(combined);
 
-                    } else if (points.length === 1) {
-                        profile = [
-                            { x: 0, z: points[0].z },
-                            { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: points[0].z }
-                        ];
-                    }
-                    
-                    setSpatialProfileData(profile);
-                    
-                    // --- 3. Update Status ---
-                    const s1_stat = s1_last !== null ? `S1: ${s1_last.toFixed(1)} cm` : "S1: no data";
-                    const s2_stat = s2_last !== null ? `S2: ${s2_last.toFixed(1)} cm` : "S2: no data";
-                    const slope_stat = `Slope: ${slope_cm_per_m_txt} cm/m`;
-                    const head_stat = `ΔHead: ${head_diff_txt} cm`;
-                    
-                    setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1_stat} | ${s2_stat} | ${slope_stat} | ${head_stat}`);
+      // Spatial line (2-point line or flat if 1 point)
+      const s1_last = d1.length ? d1[d1.length - 1].height : null;
+      const s2_last = d2.length ? d2[d2.length - 1].height : null;
 
-                } catch (e) {
-                    console.error("Failed to fetch flume data:", e);
-                    setError(e.message);
-                    setStatus(`Error: ${e.message}. Retrying...`);
-                }
-            };
+      const pts = [];
+      if (s1_last !== null) pts.push({ x: FLUME_CONFIG.S1_X_CM, z: s1_last });
+      if (s2_last !== null) pts.push({ x: FLUME_CONFIG.S2_X_CM, z: s2_last });
+      setSpatialPoints(pts);
 
-            // This sets up the automatic polling
-            useEffect(() => {
-                // *** FIX: This check is now robust. It checks for the placeholder OR an empty string ***
-                if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
-                    const msg = "API_KEY is not set. Please add it to FLUME_CONFIG.";
-                    setError(msg);
-                    setStatus(`Error: ${msg}`);
-                    return; // Stop here
-                }
-                
-                // Run once immediately
-                refreshAllData();
+      let profile = [];
+      let slope_txt = "—";
+      let head_txt = "—";
 
-                // Then run on a timer
-                const interval = setInterval(refreshAllData, FLUME_CONFIG.POLL_EVERY_SECONDS * 1000);
+      if (pts.length === 2) {
+        const [p1, p2] = pts[0].x <= pts[1].x ? [pts[0], pts[1]] : [pts[1], pts[0]];
+        const m = (p2.z - p1.z) / (p2.x - p1.x);
+        const b = p1.z - m * p1.x;
+        profile = [
+          { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m * 0 + b) },
+          { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m * FLUME_CONFIG.FLUME_LENGTH_CM + b) }
+        ];
+        const dx_m = (p2.x - p1.x) / 100.0;
+        const dz_cm = p2.z - p1.z;
+        slope_txt = (dz_cm / dx_m).toFixed(2);
+        head_txt = dz_cm.toFixed(2);
+      } else if (pts.length === 1) {
+        profile = [
+          { x: 0, z: pts[0].z },
+          { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: pts[0].z }
+        ];
+      }
+      setSpatialProfileData(profile);
 
-                // Clean up timer on unmount
-                return () => clearInterval(interval);
-            }, []); // Empty array means this runs only once on mount
+      const s1_stat = s1_last !== null ? `S1: ${s1_last.toFixed(1)} cm` : "S1: no data";
+      const s2_stat = s2_last !== null ? `S2: ${s2_last.toFixed(1)} cm` : "S2: no data";
+      setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1_stat} | S2: ${s2_stat} | Slope: ${slope_txt} cm/m | ΔHead: ${head_txt} cm`);
+    } catch (e) {
+      console.error("Failed to fetch flume data:", e);
+      setError(e.message);
+      setStatus(`Error: ${e.message}. Retrying...`);
+    }
+  };
 
-            return (
-                <div className="min-h-screen bg-gray-50">
-                    <DashboardHeader user={user} onLogout={onLogout} />
-                    
-                    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                        <div className="bg-white rounded-lg shadow-lg p-8">
-                            
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
-                                <Activity className="w-10 h-10" style={{color: BRAND_COLORS.primary}} />
-                            </div>
-                            
-                            <div className="text-sm text-gray-600 mb-6 p-4 rounded-lg" style={{backgroundColor: error ? '#fff0f0' : BRAND_COLORS.light, color: error ? 'red' : BRAND_COLORS.dark }}>
-                                {status}
-                            </div>
-                            
-                            {/* Time Series Plot */}
-                            <div className="mb-8">
-                                <h3 className="text-xl font-semibold mb-4" style={{color: BRAND_COLORS.dark}}>Live Water Level</h3>
-                                <div className="w-full h-96">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} />
-                                            <YAxis domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}>
-                                                <Label angle={-90} value="Water Height (cm)" position="insideLeft" style={{ textAnchor: 'middle' }} />
-                                            </YAxis>
-                                            <Tooltip />
-                                            <Legend />
-                                            <Line type="monotone" name="Site 1 (cm)" dataKey="s1_height" stroke="#8884d8" strokeWidth={2} dot={false} connectNulls />
-                                            <Line type="monotone" name="Site 2 (cm)" dataKey="s2_height" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
+  React.useEffect(() => {
+    if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
+      const msg = "API_KEY is not set. Please add it to FLUME_CONFIG.";
+      setError(msg);
+      setStatus(`Error: ${msg}`);
+      return;
+    }
+    refreshAllData();
+    const id = setInterval(refreshAllData, FLUME_CONFIG.POLL_EVERY_SECONDS * 1000);
+    return () => clearInterval(id);
+  }, []);
 
-                            {/* Spatial Profile Plot */}
-                            <div>
-                                <h3 className="text-xl font-semibold mb-4" style={{color: BRAND_COLORS.dark}}>Spatial Profile</h3>
-                                <div className="w-full h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart
-                                            data={spatialProfileData}
-                                            margin={{ top: 5, right: 30, left: 20, bottom: 20 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis 
-                                                dataKey="x" 
-                                                type="number" 
-                                                domain={[0, FLUME_CONFIG.FLUME_LENGTH_CM]}
-                                            >
-                                                <Label value="Position along flume (cm)" offset={-10} position="insideBottom" />
-                                            </XAxis>
-                                            <YAxis 
-                                                dataKey="z" 
-                                                type="number" 
-                                                domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}
-                                            >
-                                                <Label angle={-90} value="Water Height (cm)" position="insideLeft" style={{ textAnchor: 'middle' }} />
-                                            </YAxis>
-                                            <Tooltip />
-                                            <Legend verticalAlign="top" />
-                                            <Line type="linear" name="Water Profile" dataKey="z" stroke="#8884d8" strokeWidth={2} dot={false} />
-                                            
-                                            {/* This plots the two sensor points */}
-                                            <Scatter name="Sensor Points" data={spatialPoints} fill="#FF0000" />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-                    </main>
-                </div>
-            );
-        };
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader user={user} onLogout={onLogout} />
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
+            <Activity className="w-10 h-10" style={{ color: BRAND_COLORS.primary }} />
+          </div>
+
+          <div
+            className="text-sm text-gray-600 mb-6 p-4 rounded-lg"
+            style={{ backgroundColor: error ? '#fff0f0' : BRAND_COLORS.light, color: error ? 'red' : BRAND_COLORS.dark }}
+          >
+            {status}
+          </div>
+
+          {/* Time Series */}
+          <ChartBoundary>
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Live Water Level</h3>
+              <div className="w-full h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}
+                      label={{ value: 'Water Height (cm)', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" name="Site 1 (cm)" dataKey="s1_height" stroke="#8884d8" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" name="Site 2 (cm)" dataKey="s2_height" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </ChartBoundary>
+
+          {/* Spatial Profile */}
+          <ChartBoundary>
+            <div>
+              <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
+              <div className="w-full h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={spatialProfileData} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="x"
+                      type="number"
+                      domain={[0, FLUME_CONFIG.FLUME_LENGTH_CM]}
+                      label={{ value: 'Position along flume (cm)', position: 'insideBottom', offset: -10 }}
+                    />
+                    <YAxis
+                      dataKey="z"
+                      type="number"
+                      domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}
+                      label={{ value: 'Water Height (cm)', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip />
+                    <Legend verticalAlign="top" />
+                    <Line type="linear" name="Water Profile" dataKey="z" stroke="#8884d8" strokeWidth={2} dot={false} />
+                    {/* Sensor points: either ReferenceDot on the line OR a Scatter layer if you prefer */}
+                    {spatialPoints.map((p, i) => (
+                      <ReferenceDot key={i} x={p.x} y={p.z} r={4} fill="#ff0000" stroke="none" />
+                    ))}
+                    {/* Or, use Scatter if you prefer: */}
+                    {/* <Scatter name="Sensor Points" data={spatialPoints} fill="#ff0000" /> */}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </ChartBoundary>
+        </div>
+      </main>
+    </div>
+  );
+};
         // Wabash Landing Page
         const WabashLanding = ({ user, onLogout }) => {
             return (
