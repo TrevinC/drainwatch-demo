@@ -515,14 +515,14 @@
         return out.slice(-FLUME_CONFIG.POINTS_TO_SHOW);
       };
 
-      const refreshAllData = async () => {
-        try {
-          if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'Something dumb') {
-            const msg = "API_KEY is not set. Add it in FLUME_CONFIG.";
-            setError(msg); setStatus(`Error: ${msg}`); return;
-          }
-          setError(null);
-          setStatus("Fetching data...");
+      // const refreshAllData = async () => {
+      //   try {
+      //     if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'Something dumb') {
+      //       const msg = "API_KEY is not set. Add it in FLUME_CONFIG.";
+      //       setError(msg); setStatus(`Error: ${msg}`); return;
+      //     }
+      //     setError(null);
+      //     setStatus("Fetching data...");
 
           const [d1, d2] = await Promise.all([
             fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
