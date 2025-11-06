@@ -1,24 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
-    <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
-    <style>
-        @keyframes blink {
-            0%, 50%, 100% { opacity: 1; }
-            25%, 75% { opacity: 0.3; }
-        }
-        .animate-blink {
-            animation: blink 2s ease-in-out infinite;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
+
+  <!-- React first -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Recharts UMD (pinned) -->
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
+  <!-- Fallback if jsDelivr is blocked -->
+  <script>
+    if (!window.Recharts) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
+
+  <!-- Then the rest -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
+
+  <style>
+    @keyframes blink {
+      0%, 50%, 100% { opacity: 1; }
+      25%, 75% { opacity: 0.3; }
+    }
+    .animate-blink {
+      animation: blink 2s ease-in-out infinite;
+    }
+  </style>
 </head>
 <body>
     <div id="root"></div>
