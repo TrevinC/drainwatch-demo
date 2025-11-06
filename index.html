@@ -8,6 +8,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
     <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
     <style>
         @keyframes blink {
@@ -104,11 +105,9 @@
             { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 68, y: 25, battery: 83 },
         ];
         
-        // *** WORK ORDER FIX: Y-coordinates shifted vertically into streets ***
+        // WORK ORDER FIX: Y-coordinates shifted vertically into streets
         const workOrders = [
-            // This one STAYS on the sensor, since it's a sensor error
             { id: 'WO-2401', location: 'MLK & E 31st St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', x: 92, y: 25 }, 
-            // These are moved vertically into the "street"
             { id: 'WO-2402', location: 'Near Michigan & 32nd', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 78, y: 30 },
             { id: 'WO-2403', location: 'Near Federal & 34th', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 68, y: 50 },
             { id: 'WO-2404', location: 'Near Indiana & 35th', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 83, y: 60 },
@@ -138,22 +137,17 @@
 
         // New SimpleLineChart Component
         const SimpleLineChart = ({ data }) => {
-            // Y-AXIS FIX: Set maxValue to 100 and minValue to 0 for a 0-100% scale
             const maxValue = 100;
             const minValue = 0;
             const range = maxValue - minValue;
-
-            // Define chart padding/area
             const padding = { top: 10, right: 5, bottom: 20, left: 12 };
             const chartWidth = 100 - padding.left - padding.right;
             const chartHeight = 100 - padding.top - padding.bottom;
 
-            // Function to get X position for an index
             const getX = (i) => {
                 return padding.left + (i / (data.length - 1)) * chartWidth;
             };
 
-            // Function to get Y position for a value
             const getY = (value) => {
                 if (range === 0) return padding.top;
                 return padding.top + (1 - (value - minValue) / range) * chartHeight;
@@ -161,7 +155,6 @@
 
             const points = data.map((d, i) => `${getX(i)},${getY(d.capacity)}`).join(' ');
 
-            // Create Y-axis labels (0%, 25%, 50%, 75%, 100%)
             const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
                 const value = Math.round(maxValue * pct); 
                 const y = getY(value);
@@ -169,12 +162,9 @@
             });
 
             return (
-                // *** HEIGHT FIX: Increased container height to h-72 ***
                 <div className="relative h-72 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
-                    {/* *** HEIGHT FIX: Increased SVG height to h-64 *** */}
                     <svg className="w-full h-64" viewBox="0 0 100 100">
-                        {/* Y-axis labels and grid lines */}
                         {yAxisLabels.map((label, i) => (
                             <g key={i}>
                                 <text x={padding.left - 2} y={label.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">
@@ -188,12 +178,11 @@
                             </g>
                         ))}
                         
-                        {/* X-axis labels */}
                         {data.map((d, i) => (
                             <text
                                 key={d.time}
                                 x={getX(i)}
-                                y={100 - padding.bottom + 7} // Position below the chart
+                                y={100 - padding.bottom + 7}
                                 fontSize="5"
                                 fill="#666"
                                 textAnchor="middle"
@@ -202,20 +191,16 @@
                             </text>
                         ))}
 
-                        {/* X-axis line */}
                         <line 
                             x1={padding.left} y1={getY(0)}
                             x2={padding.left + chartWidth} y2={getY(0)}
                             stroke="#666" strokeWidth="0.5"
                         />
-                        {/* Y-axis line */}
                         <line 
                             x1={padding.left} y1={padding.top}
                             x2={padding.left} y2={getY(0)}
                             stroke="#666" strokeWidth="0.5"
                         />
-
-                        {/* Data Line */}
                         <polyline
                             points={points}
                             fill="none"
@@ -223,7 +208,6 @@
                             strokeWidth="1.5"
                         />
                         
-                        {/* Data Points */}
                         {data.map((d, i) => (
                             <circle
                                 key={i}
@@ -241,23 +225,17 @@
         // New SimpleBarChart Component
         const SimpleBarChart = ({ data }) => {
             const maxValue = Math.max(...data.map(d => d.flow));
-
-            // Define chart padding/area
             const padding = { top: 10, right: 5, bottom: 20, left: 12 };
             const chartWidth = 100 - padding.left - padding.right;
             const chartHeight = 100 - padding.top - padding.bottom;
-
-            // Bar calculations
-            const barWidth = (chartWidth / data.length) * 0.8; // 80% width for padding
+            const barWidth = (chartWidth / data.length) * 0.8;
             const barSpacing = (chartWidth / data.length) * 0.2;
 
-            // Function to get Y position for a value
             const getY = (value) => {
                 if (maxValue === 0) return padding.top + chartHeight;
                 return padding.top + (1 - value / maxValue) * chartHeight;
             };
 
-            // Create Y-axis labels
             const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
                 const value = Math.round(maxValue * pct);
                 const y = getY(value);
@@ -265,12 +243,9 @@
             });
             
             return (
-                // *** HEIGHT FIX: Increased container height to h-72 ***
                 <div className="relative h-72 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
-                    {/* *** HEIGHT FIX: Increased SVG height to h-64 *** */}
                     <svg className="w-full h-64" viewBox="0 0 100 100">
-                        {/* Y-axis labels and grid lines */}
                         {yAxisLabels.map((label, i) => (
                             <g key={i}>
                                 <text x={padding.left - 2} y={label.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">
@@ -284,17 +259,14 @@
                             </g>
                         ))}
                         
-                        {/* X-axis labels */}
                         {data.map((d, i) => {
-                            // X-AXIS FIX: Only show every other label (i % 2 === 0)
                             if (i % 2 !== 0) return null; 
-
                             const x = padding.left + i * (barWidth + barSpacing) + (barWidth / 2) + (barSpacing / 2);
                             return (
                                 <text
                                     key={d.time}
                                     x={x}
-                                    y={100 - padding.bottom + 7} // Position below the chart
+                                    y={100 - padding.bottom + 7}
                                     fontSize="5"
                                     fill="#666"
                                     textAnchor="middle"
@@ -304,20 +276,17 @@
                             );
                         })}
                         
-                        {/* X-axis line */}
                         <line 
                             x1={padding.left} y1={getY(0)}
                             x2={padding.left + chartWidth} y2={getY(0)}
                             stroke="#666" strokeWidth="0.5"
                         />
-                        {/* Y-axis line */}
                         <line 
                             x1={padding.left} y1={padding.top}
                             x2={padding.left} y2={getY(0)}
                             stroke="#666" strokeWidth="0.5"
                         />
 
-                        {/* Bars */}
                         {data.map((d, i) => {
                             const x = padding.left + i * (barWidth + barSpacing) + (barSpacing / 2);
                             const y = getY(d.flow);
@@ -432,9 +401,9 @@
                             {showCredentials && (
                                 <div className="mt-4 rounded-lg p-4 text-xs space-y-2" style={{backgroundColor: BRAND_COLORS.light}}>
                                     <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
-                                    <div><span className="font-medium">Grainger -</span>Password : IIT</div>
-                                    <div><span className="font-medium">Flume -</span>Password : IIT</div>
-                                    <div><span className="font-medium">Wabash -</span>Password : IIT</div>
+                                    <div><span className="font-medium">Grainger:</span> IIT</div>
+                                    <div><span className="font-medium">Flume:</span> IIT</div>
+                                    <div><span className="font-medium">Wabash:</span> IIT</div>
                                 </div>
                             )}
                         </div>
@@ -446,7 +415,6 @@
         // Header Component with brand colors
         const DashboardHeader = ({ user, onLogout }) => {
             return (
-                // Header color fix from before
                 <header className="text-white shadow-lg bg-sky-600">
                     <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between">
@@ -534,12 +502,9 @@
                             <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
                                 <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
                                 
-                                {/* Map aspect ratio fix from before */}
                                 <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-                                    
                                     <img src="./IIT-3rdWard.jpg" alt="Network Map" className="w-full h-auto" />
                                     
-                                    {/* Smaller Static Sensors */}
                                     {sensorData.map((sensor) => (
                                         <div
                                             key={sensor.id}
@@ -554,7 +519,6 @@
                                         </div>
                                     ))}
 
-                                    {/* Blinking Work Order Indicators */}
                                     {workOrders.map((order) => (
                                         <div
                                             key={order.id}
@@ -628,6 +592,7 @@
                                                 <div>
                                                     <p className="font-bold text-sm">{order.id}</p>
                                                     <p className="text-xs opacity-75">{order.location}</p>
+
                                                 </div>
                                                 <span className="text-xs font-semibold uppercase">{order.risk}</span>
                                             </div>
@@ -695,44 +660,297 @@
             );
         };
 
-        // Flume Landing Page
+        // Flume Landing Page - WITH LIVE PLOTS
         const FlumeLanding = ({ user, onLogout }) => {
+            // Get all Recharts components
+            const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label, Scatter } = ReCharts;
+
+            // --- CONFIGURATION ---
+            const FLUME_CONFIG = {
+                // *** PASTE YOUR *NEW* API KEY HERE (as a simple string) ***
+                API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', 
+                
+                // From SHEET1_URL
+                SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo', 
+                SHEET1_TAB: 'Sewer Water Level Monitor',
+                INSTALL_HEIGHT_CM_1: 55.0,
+                S1_X_CM: 90.0,
+                
+                // From SHEET2_URL
+                SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA', 
+                SHEET2_TAB: 'Sewer Water Level Monitor - 2',
+                INSTALL_HEIGHT_CM_2: 41.0,
+                S2_X_CM: 259.0,
+
+                FLUME_LENGTH_CM: 305.0,
+                YMIN_CM: 0.0,
+                YMAX_CM: 45.0,
+                POLL_EVERY_SECONDS: 2, // Set to 2 seconds for demo
+                POINTS_TO_SHOW: 60
+            };
+            // --- END CONFIG ---
+
+            const [error, setError] = useState(null);
+            const [status, setStatus] = useState("Connecting...");
+            const [timeSeriesData, setTimeSeriesData] = useState([]);
+            const [spatialProfileData, setSpatialProfileData] = useState([]);
+            const [spatialPoints, setSpatialPoints] = useState([]);
+
+            // Helper function to parse Google's timestamp (serial or string)
+            const parseSheetTime = (val) => {
+                if (typeof val === 'number') {
+                    // Google Sheets Serial Date (days since 1899-12-30)
+                    const baseDate = new Date('1899-12-30T00:00:00Z');
+                    const millis = baseDate.getTime() + (val * 24 * 60 * 60 * 1000);
+                    return new Date(millis);
+                }
+                try {
+                    // Try to parse it as a standard date string
+                    const d = new Date(val);
+                    if (!isNaN(d)) return d;
+                } catch (e) {}
+                return null;
+            };
+
+            // This function fetches and parses the data, just like the Python script
+            const fetchSheetData = async (sheetId, tabName, installHeight) => {
+                
+                // *** FIX: REMOVED THE BAD 'if' CHECK THAT WAS HERE ***
+                
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${tabName}?key=${FLUME_CONFIG.API_KEY}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    const errorMessage = errorData?.error?.message || `Google Sheets API Error: ${response.status}`;
+                    // Add better error handling for common mistakes
+                    if (errorMessage.includes("API key not valid")) {
+                        throw new Error("API Key is not valid. Check the key in FLUME_CONFIG.");
+                    }
+                     if (errorMessage.includes("Unable to parse range")) {
+                        throw new Error(`Sheet tab name "${tabName}" not found or incorrect.`);
+                    }
+                    if (errorMessage.includes("PERMISSION_DENIED")) {
+                        throw new Error("Sheet is not public. Set 'Anyone with the link' to 'Viewer'.");
+                    }
+                    throw new Error(errorMessage);
+                }
+                const json = await response.json();
+                const rows = json.values;
+
+                if (!rows || rows.length === 0) {
+                    return [];
+                }
+
+                const header = rows[0].map(h => h.toLowerCase());
+                const tsCol = header.indexOf("timestamp");
+                const valCol = header.indexOf("distance to water (cm)");
+
+                if (tsCol === -1 || valCol === -1) {
+                    throw new Error(`Sheet "${tabName}" missing required columns: "Timestamp" or "Distance to Water (cm)".`);
+                }
+
+                const data = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const ts = parseSheetTime(row[tsCol]);
+                    const dist = parseFloat(String(row[valCol]).replace(",", ""));
+
+                    if (ts && !isNaN(dist)) {
+                        let height = (installHeight - dist);
+                        // Clamp to [YMIN, YMAX]
+                        height = Math.max(FLUME_CONFIG.YMIN_CM, Math.min(FLUME_CONFIG.YMAX_CM, height));
+                        
+                        data.push({
+                            time: ts,
+                            height: height
+                        });
+                    }
+                }
+
+                // Sort by time and get the tail
+                return data
+                    .sort((a, b) => a.time - b.time)
+                    .slice(-FLUME_CONFIG.POINTS_TO_SHOW);
+            };
+
+            // The main function to refresh all data
+            const refreshAllData = async () => {
+                try {
+                    setError(null);
+                    setStatus("Fetching data...");
+
+                    // Fetch both sheets in parallel
+                    const [data1, data2] = await Promise.all([
+                        fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
+                        fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2)
+                    ]);
+
+                    // --- 1. Process Time Series Data ---
+                    const allTimestamps = new Set([...data1.map(d => d.time.getTime()), ...data2.map(d => d.time.getTime())]);
+                    const combinedData = Array.from(allTimestamps)
+                        .sort((a, b) => a - b)
+                        .map(ts => {
+                            const d1 = data1.find(d => d.time.getTime() === ts);
+                            const d2 = data2.find(d => d.time.getTime() === ts);
+                            return {
+                                name: new Date(ts).toLocaleTimeString(), // X-axis label
+                                time: new Date(ts),
+                                s1_height: d1 ? d1.height : null,
+                                s2_height: d2 ? d2.height : null,
+                            };
+                        });
+                    
+                    setTimeSeriesData(combinedData);
+                    
+                    // --- 2. Process Spatial Profile Data ---
+                    const s1_last = data1.length > 0 ? data1[data1.length - 1].height : null;
+                    const s2_last = data2.length > 0 ? data2[data2.length - 1].height : null;
+                    
+                    const points = [];
+                    if(s1_last !== null) points.push({ x: FLUME_CONFIG.S1_X_CM, z: s1_last });
+                    if(s2_last !== null) points.push({ x: FLUME_CONFIG.S2_X_CM, z: s2_last });
+                    
+                    setSpatialPoints(points); // Just the sensor points
+
+                    let profile = [];
+                    let slope_cm_per_m_txt = "—";
+                    let head_diff_txt = "—";
+                    
+                    if (points.length === 2) {
+                        const [p1, p2] = points.sort((a,b) => a.x - b.x); // Ensure p1 is upstream
+                        const m = (p2.z - p1.z) / (p2.x - p1.x); // cm/cm
+                        const b = p1.z - m * p1.x;
+                        
+                        profile = [
+                            { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m * 0 + b) },
+                            { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m * FLUME_CONFIG.FLUME_LENGTH_CM + b) }
+                        ];
+                        
+                        const dx_m = (p2.x - p1.x) / 100.0;
+                        const dz_cm = p2.z - p1.z;
+                        slope_cm_per_m_txt = (dz_cm / dx_m).toFixed(2);
+                        head_diff_txt = dz_cm.toFixed(2);
+
+                    } else if (points.length === 1) {
+                        profile = [
+                            { x: 0, z: points[0].z },
+                            { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: points[0].z }
+                        ];
+                    }
+                    
+                    setSpatialProfileData(profile);
+                    
+                    // --- 3. Update Status ---
+                    const s1_stat = s1_last !== null ? `S1: ${s1_last.toFixed(1)} cm` : "S1: no data";
+                    const s2_stat = s2_last !== null ? `S2: ${s2_last.toFixed(1)} cm` : "S2: no data";
+                    const slope_stat = `Slope: ${slope_cm_per_m_txt} cm/m`;
+                    const head_stat = `ΔHead: ${head_diff_txt} cm`;
+                    
+                    setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1_stat} | ${s2_stat} | ${slope_stat} | ${head_stat}`);
+
+                } catch (e) {
+                    console.error("Failed to fetch flume data:", e);
+                    setError(e.message);
+                    setStatus(`Error: ${e.message}. Retrying...`);
+                }
+            };
+
+            // This sets up the automatic polling
+            useEffect(() => {
+                // *** FIX: This check is now robust. It checks for the placeholder OR an empty string ***
+                if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
+                    const msg = "API_KEY is not set. Please add it to FLUME_CONFIG.";
+                    setError(msg);
+                    setStatus(`Error: ${msg}`);
+                    return; // Stop here
+                }
+                
+                // Run once immediately
+                refreshAllData();
+
+                // Then run on a timer
+                const interval = setInterval(refreshAllData, FLUME_CONFIG.POLL_EVERY_SECONDS * 1000);
+
+                // Clean up timer on unmount
+                return () => clearInterval(interval);
+            }, []); // Empty array means this runs only once on mount
+
             return (
                 <div className="min-h-screen bg-gray-50">
                     <DashboardHeader user={user} onLogout={onLogout} />
                     
                     <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-                            <Activity className="w-24 h-24 mx-auto mb-6" style={{color: BRAND_COLORS.primary}} />
-                            <h2 className="text-3xl font-bold text-gray-800 mb-4">Flume Lab Sensors</h2>
-                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
-                            <div className="max-w-2xl mx-auto text-left rounded-lg p-6" style={{backgroundColor: BRAND_COLORS.light}}>
-                                <h3 className="font-bold text-lg mb-3" style={{color: BRAND_COLORS.dark}}>Planned Features:</h3>
-                                <ul className="space-y-2 text-gray-700">
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Real-time sensor data streaming from lab flume
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Live plotting of sensor readings
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Historical data visualization
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Customizable alerts and thresholds
-                                    </li>
-                                </ul>
+                        <div className="bg-white rounded-lg shadow-lg p-8">
+                            
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
+                                <Activity className="w-10 h-10" style={{color: BRAND_COLORS.primary}} />
+                            </div>
+                            
+                            <div className="text-sm text-gray-600 mb-6 p-4 rounded-lg" style={{backgroundColor: error ? '#fff0f0' : BRAND_COLORS.light, color: error ? 'red' : BRAND_COLORS.dark }}>
+                                {status}
+                            </div>
+                            
+                            {/* Time Series Plot */}
+                            <div className="mb-8">
+                                <h3 className="text-xl font-semibold mb-4" style={{color: BRAND_COLORS.dark}}>Live Water Level</h3>
+                                <div className="w-full h-96">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} />
+                                            <YAxis domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}>
+                                                <Label angle={-90} value="Water Height (cm)" position="insideLeft" style={{ textAnchor: 'middle' }} />
+                                            </YAxis>
+                                            <Tooltip />
+                                            <Legend />
+                                            <Line type="monotone" name="Site 1 (cm)" dataKey="s1_height" stroke="#8884d8" strokeWidth={2} dot={false} connectNulls />
+                                            <Line type="monotone" name="Site 2 (cm)" dataKey="s2_height" stroke="#82ca9d" strokeWidth={2} dot={false} connectNulls />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Spatial Profile Plot */}
+                            <div>
+                                <h3 className="text-xl font-semibold mb-4" style={{color: BRAND_COLORS.dark}}>Spatial Profile</h3>
+                                <div className="w-full h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart
+                                            data={spatialProfileData}
+                                            margin={{ top: 5, right: 30, left: 20, bottom: 20 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis 
+                                                dataKey="x" 
+                                                type="number" 
+                                                domain={[0, FLUME_CONFIG.FLUME_LENGTH_CM]}
+                                            >
+                                                <Label value="Position along flume (cm)" offset={-10} position="insideBottom" />
+                                            </XAxis>
+                                            <YAxis 
+                                                dataKey="z" 
+                                                type="number" 
+                                                domain={[FLUME_CONFIG.YMIN_CM, FLUME_CONFIG.YMAX_CM]}
+                                            >
+                                                <Label angle={-90} value="Water Height (cm)" position="insideLeft" style={{ textAnchor: 'middle' }} />
+                                            </YAxis>
+                                            <Tooltip />
+                                            <Legend verticalAlign="top" />
+                                            <Line type="linear" name="Water Profile" dataKey="z" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                            
+                                            {/* This plots the two sensor points */}
+                                            <Scatter name="Sensor Points" data={spatialPoints} fill="#FF0000" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
                         </div>
                     </main>
                 </div>
             );
         };
-
         // Wabash Landing Page
         const WabashLanding = ({ user, onLogout }) => {
             return (
@@ -771,7 +989,6 @@
             );
         };
 
-        // Main App Component
         const App = () => {
             const [user, setUser] = useState(null);
 
