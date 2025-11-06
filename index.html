@@ -84,15 +84,15 @@
             );
         };
 
-        // Mock data - 16 sensors with real street names from the map
+        // Mock data - 16 sensors with S-007 error, S-004 and S-015 low battery
         const sensorData = [
-            { id: 'S-001', name: 'State & E 33rd St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 55, y: 38, battery: 0, error: true },
-            { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 62, y: 25, battery: 15 },
+            { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 55, y: 38, battery: 88 },
+            { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 62, y: 25, battery: 84 },
             { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, x: 68, y: 42, battery: 85 },
-            { id: 'S-004', name: 'Wentworth & E 34th St', status: 'normal', capacity: 32, flow: 18, headHeight: 1.3, x: 75, y: 48, battery: 92 },
-            { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 55, battery: 18 },
+            { id: 'S-004', name: 'Wentworth & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 75, y: 48, battery: 17 },
+            { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 55, battery: 79 },
             { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 65, y: 32, battery: 67 },
-            { id: 'S-007', name: 'Wentworth & E 31st St', status: 'normal', capacity: 38, flow: 24, headHeight: 1.5, x: 78, y: 28, battery: 78 },
+            { id: 'S-007', name: 'Wentworth & E 31st St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 78, y: 28, battery: 0, error: true },
             { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 60, y: 48, battery: 88 },
             { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 70, y: 35, battery: 73 },
             { id: 'S-010', name: 'Wentworth & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 82, y: 58, battery: 81 },
@@ -100,26 +100,30 @@
             { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, x: 58, y: 28, battery: 94 },
             { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, x: 72, y: 45, battery: 89 },
             { id: 'S-014', name: 'Wentworth & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, x: 80, y: 42, battery: 76 },
-            { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 65, y: 62, battery: 91 },
+            { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 65, y: 62, battery: 15 },
             { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 72, y: 25, battery: 83 },
         ];
 
         const workOrders = [
-            { id: 'WO-2401', location: 'State & E 33rd St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', confidence: 94, x: 55, y: 38 },
+            { id: 'WO-2401', location: 'Wentworth & E 31st St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', x: 78, y: 28 },
             { id: 'WO-2402', location: 'Michigan & E 32nd St', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 63, y: 28 },
             { id: 'WO-2403', location: 'Federal & E 34th St', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 71, y: 47 },
             { id: 'WO-2404', location: 'Wentworth & E 35th St', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 80, y: 56 },
             { id: 'WO-2405', location: 'State & E 34th St', risk: 'medium', issue: 'Reduced flow capacity', impact: 'Low', eta: '5 days', confidence: 78, x: 59, y: 50 },
         ];
 
+        // Calculate average capacity from working sensors for historical trend
+        const workingSensors = sensorData.filter(s => !s.error);
+        const avgCapacity = workingSensors.reduce((sum, s) => sum + s.capacity, 0) / workingSensors.length;
+        
         const historicalData = [
-            { time: '00:00', capacity: 35, flow: 22 },
-            { time: '04:00', capacity: 42, flow: 26 },
-            { time: '08:00', capacity: 58, flow: 32 },
-            { time: '12:00', capacity: 68, flow: 37 },
-            { time: '16:00', capacity: 79, flow: 39 },
-            { time: '20:00', capacity: 85, flow: 38 },
-            { time: 'Now', capacity: 92, flow: 40 },
+            { time: '00:00', capacity: Math.round(avgCapacity * 0.38), flow: 22 },
+            { time: '04:00', capacity: Math.round(avgCapacity * 0.46), flow: 26 },
+            { time: '08:00', capacity: Math.round(avgCapacity * 0.63), flow: 32 },
+            { time: '12:00', capacity: Math.round(avgCapacity * 0.74), flow: 37 },
+            { time: '16:00', capacity: Math.round(avgCapacity * 0.86), flow: 39 },
+            { time: '20:00', capacity: Math.round(avgCapacity * 0.93), flow: 38 },
+            { time: 'Now', capacity: Math.round(avgCapacity), flow: 40 },
         ];
 
         const performanceData = [
@@ -129,12 +133,15 @@
             { metric: 'CSO Volume Reduction', value: '220M gal', change: '-32%', trend: 'down' },
         ];
 
-        // Simple Chart Components with Y-axis labels
+        // Simple Chart Components with proper alignment
         const SimpleLineChart = ({ data }) => {
             const maxValue = Math.max(...data.map(d => d.capacity));
+            const minValue = 0;
+            const range = maxValue - minValue;
+            
             const points = data.map((d, i) => {
-                const x = 15 + (i / (data.length - 1)) * 70;
-                const y = 90 - (d.capacity / maxValue * 70);
+                const x = 20 + (i / (data.length - 1)) * 75;
+                const y = 10 + (1 - (d.capacity - minValue) / range) * 75;
                 return `${x},${y}`;
             }).join(' ');
 
@@ -142,34 +149,42 @@
                 <div className="relative h-64 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
                     <svg className="w-full h-48" viewBox="0 0 100 100">
+                        {/* Y-axis */}
+                        <line x1="20" y1="10" x2="20" y2="85" stroke="#666" strokeWidth="0.5" />
+                        
+                        {/* X-axis */}
+                        <line x1="20" y1="85" x2="95" y2="85" stroke="#666" strokeWidth="0.5" />
+                        
                         {/* Y-axis labels */}
-                        <text x="2" y="15" fontSize="3" fill="#666">100%</text>
-                        <text x="2" y="40" fontSize="3" fill="#666">75%</text>
-                        <text x="2" y="65" fontSize="3" fill="#666">50%</text>
-                        <text x="2" y="90" fontSize="3" fill="#666">25%</text>
+                        <text x="2" y="12" fontSize="3" fill="#666">{maxValue}%</text>
+                        <text x="2" y="30" fontSize="3" fill="#666">{Math.round(maxValue * 0.75)}%</text>
+                        <text x="2" y="48" fontSize="3" fill="#666">{Math.round(maxValue * 0.5)}%</text>
+                        <text x="2" y="66" fontSize="3" fill="#666">{Math.round(maxValue * 0.25)}%</text>
+                        <text x="6" y="88" fontSize="3" fill="#666">0%</text>
                         
                         {/* Grid lines */}
-                        <line x1="15" y1="20" x2="85" y2="20" stroke="#e5e7eb" strokeWidth="0.5" />
-                        <line x1="15" y1="37.5" x2="85" y2="37.5" stroke="#e5e7eb" strokeWidth="0.5" />
-                        <line x1="15" y1="55" x2="85" y2="55" stroke="#e5e7eb" strokeWidth="0.5" />
-                        <line x1="15" y1="72.5" x2="85" y2="72.5" stroke="#e5e7eb" strokeWidth="0.5" />
-                        <line x1="15" y1="90" x2="85" y2="90" stroke="#e5e7eb" strokeWidth="0.5" />
+                        <line x1="20" y1="28.75" x2="95" y2="28.75" stroke="#e5e7eb" strokeWidth="0.3" />
+                        <line x1="20" y1="47.5" x2="95" y2="47.5" stroke="#e5e7eb" strokeWidth="0.3" />
+                        <line x1="20" y1="66.25" x2="95" y2="66.25" stroke="#e5e7eb" strokeWidth="0.3" />
                         
+                        {/* Line */}
                         <polyline
                             points={points}
                             fill="none"
                             stroke="#ef4444"
                             strokeWidth="2"
                         />
+                        
+                        {/* Points */}
                         {data.map((d, i) => {
-                            const x = 15 + (i / (data.length - 1)) * 70;
-                            const y = 90 - (d.capacity / maxValue * 70);
+                            const x = 20 + (i / (data.length - 1)) * 75;
+                            const y = 10 + (1 - (d.capacity - minValue) / range) * 75;
                             return (
-                                <circle key={i} cx={x} cy={y} r="2" fill="#ef4444" />
+                                <circle key={i} cx={x} cy={y} r="1.5" fill="#ef4444" />
                             );
                         })}
                     </svg>
-                    <div className="flex justify-between text-xs text-gray-600 mt-2 ml-6">
+                    <div className="flex justify-between text-xs text-gray-600 mt-1 ml-12 mr-2">
                         {data.filter((d, i) => i % 2 === 0).map((d, i) => <span key={i}>{d.time}</span>)}
                     </div>
                 </div>
@@ -184,7 +199,7 @@
                     <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
                     <div className="flex h-48">
                         {/* Y-axis labels */}
-                        <div className="flex flex-col justify-between text-xs text-gray-600 pr-2 py-4">
+                        <div className="flex flex-col justify-between text-xs text-gray-600 pr-2 py-2">
                             <span>{Math.round(maxValue)}</span>
                             <span>{Math.round(maxValue * 0.75)}</span>
                             <span>{Math.round(maxValue * 0.5)}</span>
@@ -193,19 +208,19 @@
                         </div>
                         
                         {/* Bars */}
-                        <div className="flex-1 flex items-end justify-around gap-1">
+                        <div className="flex-1 flex items-end justify-around gap-1 border-b-2 border-l-2 border-gray-600">
                             {data.map((d, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full pb-1">
                                     <div 
                                         className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
-                                        style={{ height: `${(d.flow / maxValue) * 100}%` }}
+                                        style={{ height: `${(d.flow / maxValue) * 95}%` }}
                                         title={`${d.time}: ${d.flow} L/s`}
                                     />
                                 </div>
                             ))}
                         </div>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-600 mt-2 ml-8">
+                    <div className="flex justify-between text-xs text-gray-600 mt-1 ml-8">
                         {data.filter((d, i) => i % 2 === 0).map((d, i) => <span key={i}>{d.time}</span>)}
                     </div>
                 </div>
@@ -283,7 +298,7 @@
                             <button
                                 type="submit"
                                 className="w-full text-white font-semibold py-3 rounded-lg transition duration-200"
-                                style={{backgroundColor: BRAND_COLORS.primary, ':hover': {backgroundColor: BRAND_COLORS.dark}}}
+                                style={{backgroundColor: BRAND_COLORS.primary}}
                                 onMouseOver={(e) => e.target.style.backgroundColor = BRAND_COLORS.dark}
                                 onMouseOut={(e) => e.target.style.backgroundColor = BRAND_COLORS.primary}
                             >
@@ -303,9 +318,9 @@
                             {showCredentials && (
                                 <div className="mt-4 rounded-lg p-4 text-xs space-y-2" style={{backgroundColor: BRAND_COLORS.light}}>
                                     <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
-                                    <div><span className="font-medium">Grainger:</span> IIT</div>
-                                    <div><span className="font-medium">Flume:</span> IIT</div>
-                                    <div><span className="font-medium">Wabash:</span> IIT</div>
+                                    <div><span className="font-medium">Grainger -</span> Password : IIT</div>
+                                    <div><span className="font-medium">Flume -</span> Password : IIT</div>
+                                    <div><span className="font-medium">Wabash -</span> Password : IIT</div>
                                 </div>
                             )}
                         </div>
@@ -400,13 +415,13 @@
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Network Map - Show full image */}
+                            {/* Network Map - Fit to aspect ratio */}
                             <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
                                 <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
-                                <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{height: '500px'}}>
-                                    <img src="./IIT-3rdWard.jpg" alt="Network Map" className="absolute inset-0 w-full h-full object-contain" />
+                                <div className="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center" style={{height: '500px'}}>
+                                    <img src="./IIT-3rdWard.jpg" alt="Network Map" className="max-w-full max-h-full object-contain" />
                                     
-                                    {/* Static Sensors (no pulsing) */}
+                                    {/* Smaller Static Sensors */}
                                     {sensorData.map((sensor) => (
                                         <div
                                             key={sensor.id}
@@ -417,7 +432,7 @@
                                                 top: `${sensor.y}%`,
                                             }}
                                         >
-                                            <div className={`w-4 h-4 rounded-full ${getStatusColor(sensor.status)} ring-4 ring-white shadow-lg`} />
+                                            <div className={`w-3 h-3 rounded-full ${getStatusColor(sensor.status)} ring-3 ring-white shadow-lg`} />
                                         </div>
                                     ))}
 
@@ -499,14 +514,18 @@
                                                 <span className="text-xs font-semibold uppercase">{order.risk}</span>
                                             </div>
                                             <p className="text-sm font-medium mb-1">{order.issue}</p>
-                                            <div className="flex justify-between text-xs">
+                                            <div className="flex justify-between text-xs mb-2">
                                                 <span>Impact: {order.impact}</span>
                                                 <span>ETA: {order.eta}</span>
                                             </div>
-                                            <div className="mt-2 bg-gray-200 rounded-full h-1.5">
-                                                <div className="h-1.5 rounded-full" style={{width: `${order.confidence}%`, backgroundColor: BRAND_COLORS.primary}} />
-                                            </div>
-                                            <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
+                                            {order.confidence && (
+                                                <>
+                                                    <div className="mt-2 bg-gray-200 rounded-full h-1.5">
+                                                        <div className="h-1.5 rounded-full" style={{width: `${order.confidence}%`, backgroundColor: BRAND_COLORS.primary}} />
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
+                                                </>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -675,4 +694,5 @@
         root.render(<App />);
     </script>
 </body>
+</html>
 </html>
