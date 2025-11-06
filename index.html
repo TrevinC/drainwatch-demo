@@ -728,7 +728,7 @@ const FlumeLanding = ({ user, onLogout }) => {
   };
 
   const fetchSheetData = async (sheetId, tabName, installHeight) => {
-    const range = encodeURIComponent(`'${tabName}'`);
+    const range = encodeURIComponent(`${tabName}!A:Z`);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${FLUME_CONFIG.API_KEY}`;
     const response = await fetch(url);
     if (!response.ok) {
