@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
 
-  <!-- React first -->
+  <!-- React first (blocking, no defer) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
@@ -16,26 +16,31 @@
     if (!window.Recharts) {
       var s = document.createElement('script');
       s.src = 'https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js';
+      s.onload = function(){ console.log('Recharts loaded from unpkg:', window.Recharts && window.Recharts.VERSION); };
+      s.onerror = function(){ console.warn('Recharts failed to load from both CDNs'); };
       document.head.appendChild(s);
     }
   </script>
 
-  <!-- Then the rest -->
+  <!-- Babel & Tailwind AFTER libs -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
 
   <style>
-    @keyframes blink {
-      0%, 50%, 100% { opacity: 1; }
-      25%, 75% { opacity: 0.3; }
-    }
-    .animate-blink {
-      animation: blink 2s ease-in-out infinite;
-    }
+    @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.3; } }
+    .animate-blink { animation: blink 2s ease-in-out infinite; }
   </style>
+
+  <!-- Optional: quick smoke test in console -->
+  <script>
+    window.addEventListener('load', function(){
+      console.log('Recharts VERSION:', window.Recharts && window.Recharts.VERSION);
+    });
+  </script>
 </head>
+
 <body>
     <div id="root"></div>
 
@@ -701,31 +706,62 @@ class ChartBoundary extends React.Component {
 }
 
 // --- Flume Landing (DROP-IN) ---
-const FlumeLanding = ({ user, onLogout }) => {
-  // 1) HARD GUARD for Recharts UMD
-  const RC = window.Recharts;
-  if (!RC) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader user={user} onLogout={onLogout} />
-        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold mb-2">Live Flume Lab Monitor</h2>
-            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
-              Recharts failed to load (window.Recharts is undefined). Make sure this script is in your
-              &lt;head&gt; before this code: <code>https://unpkg.com/recharts/umd/Recharts.min.js</code>.
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
+        const FlumeLanding = ({ user, onLogout }) => {
+            // === PLACE THESE LINES AT THE VERY TOP OF FlumeLanding ===
+            // Dynamic Recharts loader + guard (self-heals if CDN blocked)
+            const [rc, setRc] = React.useState(() => window.Recharts || null);
 
-  // 2) Import the pieces we actually use
-  const {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-    ReferenceDot, ComposedChart, Scatter
-  } = RC;
+            React.useEffect(() => {
+                if (rc) return;
+                // Try loading Recharts now if it wasn't ready at first paint
+                const existing = document.querySelector('script[data-recharts-umd]');
+                const loadFrom = (src) =>
+                    new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = src;
+                        s.setAttribute('data-recharts-umd', '1');
+                        s.onload = () => resolve();
+                        s.onerror = () => reject();
+                        document.head.appendChild(s);
+                    });
+
+                (async () => {
+                    try {
+                        if (!existing) {
+                            await loadFrom('https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js');
+                        }
+                        if (!window.Recharts) {
+                            await loadFrom('https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js');
+                        }
+                        setRc(window.Recharts || null);
+                    } catch (e) {
+                        console.error('Recharts failed to load from both CDNs', e);
+                    }
+                })();
+            }, [rc]);
+
+            // Friendly loading state until rc is ready
+            if (!rc) {
+                return (
+                    <div className="min-h-screen bg-gray-50">
+                        <DashboardHeader user={user} onLogout={onLogout} />
+                        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+                            <div className="bg-white rounded-lg shadow-lg p-8">
+                                <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
+                                <p className="mt-4 text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-3">
+                                    Loading chart library… If this never resolves, a network policy or extension may be blocking cdn.jsdelivr.net and unpkg.com.
+                                </p>
+                            </div>
+                        </main>
+                    </div>
+                );
+            }
+
+            // When ready, destructure components from rc (NOT from window.*)
+            const {
+                LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+                ResponsiveContainer, ReferenceDot, ComposedChart, Scatter
+            } = rc;
 
   const [error, setError] = React.useState(null);
   const [status, setStatus] = React.useState("Connecting...");
