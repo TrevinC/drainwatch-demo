@@ -1,1132 +1,750 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DrainWatch - Climate-Resilient Stormwater Monitoring</title>
 
-  <!-- React + ReactDOM (ok for a demo) -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Allow calling Google Sheets from your own page (won’t affect github.com repo viewer) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 connect-src 'self' https://sheets.googleapis.com https://docs.google.com;
+                 script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.tailwindcss.com;
+                 style-src 'self' 'unsafe-inline';
+                 img-src 'self' data:;">
+
+  <!-- React + ReactDOM (UMD) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
   <!-- In-browser Babel (fine for demo; build for prod later) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Tailwind CDN (fine for demo; compile for prod later) -->
+  <!-- Tailwind CDN (fine for demo) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <link rel="icon" href="./Drain Watch Logo.png" type="image/png">
+  <link rel="icon" href="./Drain Watch Logo.png" type="image/png" />
 
   <style>
     @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.3; } }
     .animate-blink { animation: blink 2s ease-in-out infinite; }
   </style>
 </head>
-
 <body>
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-
-        // Brand colors
-        const BRAND_COLORS = {
-            primary: '#005c89',
-            dark: '#00264b',
-            light: '#bbc9cd'
-        };
-
-        // User credentials
-        const USERS = {
-            'Grainger': { password: 'IIT', role: 'dashboard', name: 'Grainger' },
-            'Flume': { password: 'IIT', role: 'flume', name: 'Flume' },
-            'Wabash': { password: 'IIT', role: 'wabash', name: 'Wabash' }
-        };
-
-        // Icons
-        const AlertTriangle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-        );
-
-        const TrendingUp = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="17 6 23 6 23 12" />
-            </svg>
-        );
-
-        const CheckCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
-
-        const LogOut = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-        );
-
-        const Activity = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-        );
-
-        const Battery = ({ className, level }) => {
-            const fillWidth = Math.max(0, Math.min(100, level));
-            const color = level > 50 ? 'text-green-500' : level > 20 ? 'text-yellow-500' : 'text-red-500';
-            
-            return (
-                <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="2" y="7" width="18" height="10" rx="1" strokeWidth="2" />
-                    <rect x="3.5" y="8.5" width={fillWidth * 0.15} height="7" fill="currentColor" className={color} />
-                    <path d="M20 10h2v4h-2" strokeWidth="2" />
-                </svg>
-            );
-        };
-
-        // Sensor coordinates
-        const sensorData = [
-            { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 58, y: 45, battery: 88 },
-            { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 78, y: 25, battery: 84 },
-            { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, x: 68, y: 45, battery: 85 },
-            { id: 'S-004', name: 'Indiana & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 83, y: 55, battery: 17 },
-            { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 65, battery: 79 },
-            { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 78, y: 35, battery: 67 },
-            { id: 'S-007', name: 'MLK & E 31st St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 92, y: 25, battery: 0, error: true },
-            { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 58, y: 55, battery: 88 },
-            { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 68, y: 35, battery: 73 },
-            { id: 'S-010', name: 'Indiana & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 83, y: 65, battery: 81 },
-            { id: 'S-011', name: 'Michigan & E 34th St', status: 'normal', capacity: 33, flow: 25, headHeight: 1.3, x: 78, y: 55, battery: 56 },
-            { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, x: 58, y: 25, battery: 94 },
-            { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, x: 68, y: 55, battery: 89 },
-            { id: 'S-014', name: 'MLK & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, x: 92, y: 45, battery: 76 },
-            { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 78, y: 65, battery: 15 },
-            { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 68, y: 25, battery: 83 },
-        ];
-        
-        // WORK ORDER FIX: Y-coordinates shifted vertically into streets
-        const workOrders = [
-            { id: 'WO-2401', location: 'MLK & E 31st St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', x: 92, y: 25 }, 
-            { id: 'WO-2402', location: 'Near Michigan & 32nd', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 78, y: 30 },
-            { id: 'WO-2403', location: 'Near Federal & 34th', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 68, y: 50 },
-            { id: 'WO-2404', location: 'Near Indiana & 35th', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 83, y: 60 },
-            { id: 'WO-2405', location: 'Near State & 34th', risk: 'medium', issue: 'Reduced flow capacity', impact: 'Low', eta: '5 days', confidence: 78, x: 58, y: 50 },
-        ];
-
-        // Calculate average capacity from working sensors for historical trend
-        const workingSensors = sensorData.filter(s => !s.error);
-        const avgCapacity = workingSensors.reduce((sum, s) => sum + s.capacity, 0) / workingSensors.length;
-        
-        const historicalData = [
-            { time: '00:00', capacity: Math.round(avgCapacity * 0.38), flow: 22 },
-            { time: '04:00', capacity: Math.round(avgCapacity * 0.46), flow: 26 },
-            { time: '08:00', capacity: Math.round(avgCapacity * 0.63), flow: 32 },
-            { time: '12:00', capacity: Math.round(avgCapacity * 0.74), flow: 37 },
-            { time: '16:00', capacity: Math.round(avgCapacity * 0.86), flow: 39 },
-            { time: '20:00', capacity: Math.round(avgCapacity * 0.93), flow: 38 },
-            { time: 'Now', capacity: Math.round(avgCapacity), flow: 40 },
-        ];
-
-        const performanceData = [
-            { metric: 'Incidents Prevented', value: '127', change: '+82%', trend: 'up' },
-            { metric: 'Flooding Events', value: '3', change: '-67%', trend: 'down' },
-            { metric: 'Maintenance Cost', value: '$42K', change: '-38%', trend: 'down' },
-            { metric: 'CSO Volume Reduction', value: '220M gal', change: '-32%', trend: 'down' },
-        ];
-
-        // New SimpleLineChart Component
-        const SimpleLineChart = ({ data }) => {
-            const maxValue = 100;
-            const minValue = 0;
-            const range = maxValue - minValue;
-            const padding = { top: 10, right: 5, bottom: 20, left: 12 };
-            const chartWidth = 100 - padding.left - padding.right;
-            const chartHeight = 100 - padding.top - padding.bottom;
-
-            const getX = (i) => {
-                return padding.left + (i / (data.length - 1)) * chartWidth;
-            };
-
-            const getY = (value) => {
-                if (range === 0) return padding.top;
-                return padding.top + (1 - (value - minValue) / range) * chartHeight;
-            };
-
-            const points = data.map((d, i) => `${getX(i)},${getY(d.capacity)}`).join(' ');
-
-            const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
-                const value = Math.round(maxValue * pct); 
-                const y = getY(value);
-                return { value: `${value}%`, y };
-            });
-
-            return (
-                <div className="relative h-72 bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
-                    <svg className="w-full h-64" viewBox="0 0 100 100">
-                        {yAxisLabels.map((label, i) => (
-                            <g key={i}>
-                                <text x={padding.left - 2} y={label.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">
-                                    {label.value}
-                                </text>
-                                <line
-                                    x1={padding.left} y1={label.y}
-                                    x2={padding.left + chartWidth} y2={label.y}
-                                    stroke="#e5e7eb" strokeWidth="0.3"
-                                />
-                            </g>
-                        ))}
-                        
-                        {data.map((d, i) => (
-                            <text
-                                key={d.time}
-                                x={getX(i)}
-                                y={100 - padding.bottom + 7}
-                                fontSize="5"
-                                fill="#666"
-                                textAnchor="middle"
-                            >
-                                {d.time}
-                            </text>
-                        ))}
-
-                        <line 
-                            x1={padding.left} y1={getY(0)}
-                            x2={padding.left + chartWidth} y2={getY(0)}
-                            stroke="#666" strokeWidth="0.5"
-                        />
-                        <line 
-                            x1={padding.left} y1={padding.top}
-                            x2={padding.left} y2={getY(0)}
-                            stroke="#666" strokeWidth="0.5"
-                        />
-                        <polyline
-                            points={points}
-                            fill="none"
-                            stroke="#ef4444"
-                            strokeWidth="1.5"
-                        />
-                        
-                        {data.map((d, i) => (
-                            <circle
-                                key={i}
-                                cx={getX(i)}
-                                cy={getY(d.capacity)}
-                                r="1.5"
-                                fill="#ef4444"
-                            />
-                        ))}
-                    </svg>
-                </div>
-            );
-        };
-
-        // New SimpleBarChart Component
-        const SimpleBarChart = ({ data }) => {
-            const maxValue = Math.max(...data.map(d => d.flow));
-            const padding = { top: 10, right: 5, bottom: 20, left: 12 };
-            const chartWidth = 100 - padding.left - padding.right;
-            const chartHeight = 100 - padding.top - padding.bottom;
-            const barWidth = (chartWidth / data.length) * 0.8;
-            const barSpacing = (chartWidth / data.length) * 0.2;
-
-            const getY = (value) => {
-                if (maxValue === 0) return padding.top + chartHeight;
-                return padding.top + (1 - value / maxValue) * chartHeight;
-            };
-
-            const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
-                const value = Math.round(maxValue * pct);
-                const y = getY(value);
-                return { value, y };
-            });
-            
-            return (
-                <div className="relative h-72 bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
-                    <svg className="w-full h-64" viewBox="0 0 100 100">
-                        {yAxisLabels.map((label, i) => (
-                            <g key={i}>
-                                <text x={padding.left - 2} y={label.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">
-                                    {label.value}
-                                </text>
-                                <line
-                                    x1={padding.left} y1={label.y}
-                                    x2={padding.left + chartWidth} y2={label.y}
-                                    stroke="#e5e7eb" strokeWidth="0.3"
-                                />
-                            </g>
-                        ))}
-                        
-                        {data.map((d, i) => {
-                            if (i % 2 !== 0) return null; 
-                            const x = padding.left + i * (barWidth + barSpacing) + (barWidth / 2) + (barSpacing / 2);
-                            return (
-                                <text
-                                    key={d.time}
-                                    x={x}
-                                    y={100 - padding.bottom + 7}
-                                    fontSize="5"
-                                    fill="#666"
-                                    textAnchor="middle"
-                                >
-                                    {d.time}
-                                </text>
-                            );
-                        })}
-                        
-                        <line 
-                            x1={padding.left} y1={getY(0)}
-                            x2={padding.left + chartWidth} y2={getY(0)}
-                            stroke="#666" strokeWidth="0.5"
-                        />
-                        <line 
-                            x1={padding.left} y1={padding.top}
-                            x2={padding.left} y2={getY(0)}
-                            stroke="#666" strokeWidth="0.5"
-                        />
-
-                        {data.map((d, i) => {
-                            const x = padding.left + i * (barWidth + barSpacing) + (barSpacing / 2);
-                            const y = getY(d.flow);
-                            const height = getY(0) - y;
-
-                            return (
-                                <rect
-                                    key={d.time}
-                                    x={x}
-                                    y={y}
-                                    width={barWidth}
-                                    height={height}
-                                    className="fill-blue-500 transition-all hover:fill-blue-600"
-                                >
-                                    <title>{`${d.time}: ${d.flow} L/s`}</title>
-                                </rect>
-                            );
-                        })}
-                    </svg>
-                </div>
-            );
-        };
-
-        // Login Component with brand colors
-        const LoginPage = ({ onLogin }) => {
-            const [username, setUsername] = useState('');
-            const [password, setPassword] = useState('');
-            const [error, setError] = useState('');
-            const [showCredentials, setShowCredentials] = useState(false);
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                setError('');
-
-                const user = USERS[username];
-                if (user && user.password === password) {
-                    onLogin({ username, ...user });
-                } else {
-                    setError('Invalid username or password');
-                }
-            };
-
-            return (
-                <div className="min-h-screen flex items-center justify-center p-4" style={{background: `linear-gradient(to bottom right, ${BRAND_COLORS.primary}, ${BRAND_COLORS.dark})`}}>
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-                        <div className="text-center mb-8">
-                            <div className="flex items-center justify-center mb-4">
-                                <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-16" onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'block';
-                                }} />
-                                <svg style={{display: 'none'}} className="w-16 h-16" fill="none" stroke={BRAND_COLORS.primary} viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                                </svg>
-                            </div>
-                            <h1 className="text-3xl font-bold text-gray-800">DrainWatch</h1>
-                            <p className="text-gray-600 mt-2">Climate-Resilient Infrastructure Operations</p>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                                <input
-                                    type="text"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-                                    style={{focusRingColor: BRAND_COLORS.primary}}
-                                    placeholder="Enter username"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-                                    placeholder="••••••••"
-                                    required
-                                />
-                            </div>
-
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                                    {error}
-                                </div>
-                            )}
-
-                            <button
-                                type="submit"
-                                className="w-full text-white font-semibold py-3 rounded-lg transition duration-200"
-                                style={{backgroundColor: BRAND_COLORS.primary}}
-                                onMouseOver={(e) => e.target.style.backgroundColor = BRAND_COLORS.dark}
-                                onMouseOut={(e) => e.target.style.backgroundColor = BRAND_COLORS.primary}
-                            >
-                                Sign In
-                            </button>
-                        </form>
-
-                        <div className="mt-6">
-                            <button
-                                onClick={() => setShowCredentials(!showCredentials)}
-                                className="text-sm underline"
-                                style={{color: BRAND_COLORS.primary}}
-                            >
-                                {showCredentials ? 'Hide' : 'Show'} Demo Credentials
-                            </button>
-
-                            {showCredentials && (
-                                <div className="mt-4 rounded-lg p-4 text-xs space-y-2" style={{backgroundColor: BRAND_COLORS.light}}>
-                                    <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
-                                    <div><span className="font-medium">Grainger:</span> IIT</div>
-                                    <div><span className="font-medium">Flume:</span> IIT</div>
-                                    <div><span className="font-medium">Wabash:</span> IIT</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // Header Component with brand colors
-        const DashboardHeader = ({ user, onLogout }) => {
-            return (
-                <header className="text-white shadow-lg bg-sky-600">
-                    <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-8" onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                }} />
-                                <svg style={{display: 'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                                </svg>
-                                <div>
-                                    <h1 className="text-2xl font-bold">DrainWatch</h1>
-                                    <p className="text-sm" style={{color: BRAND_COLORS.light}}>Climate-Resilient Infrastructure Operations</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                <div className="text-right">
-                                    <p className="text-sm font-medium">{user.name}</p>
-                                </div>
-                                <button
-                                    onClick={onLogout}
-                                    className="flex items-center space-x-2 px-4 py-2 rounded-lg transition"
-                                    style={{backgroundColor: BRAND_COLORS.dark}}
-                                    onMouseOver={(e) => e.target.style.opacity = '0.9'}
-                                    onMouseOut={(e) => e.target.style.opacity = '1'}
-                                >
-                                    <LogOut className="w-4 h-4" />
-                                    <span>Logout</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-            );
-        };
-
-        // Grainger Dashboard
-        const GraingerDashboard = ({ user, onLogout }) => {
-            const [selectedSensor, setSelectedSensor] = useState(null);
-
-            const getStatusColor = (status) => {
-                switch (status) {
-                    case 'critical': return 'bg-red-500';
-                    case 'warning': return 'bg-yellow-500';
-                    case 'normal': return 'bg-green-500';
-                    default: return 'bg-gray-500';
-                }
-            };
-
-            const getRiskColor = (risk) => {
-                switch (risk) {
-                    case 'critical': return 'bg-red-100 text-red-800 border-red-300';
-                    case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
-                    case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-                    default: return 'bg-blue-100 text-blue-800 border-blue-300';
-                }
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-50">
-                    <DashboardHeader user={user} onLogout={onLogout} />
-                    
-                    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                        {/* Key Metrics */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                            {performanceData.map((item, idx) => (
-                                <div key={idx} className="bg-white rounded-lg shadow p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-gray-600">{item.metric}</p>
-                                            <p className="text-2xl font-bold mt-1">{item.value}</p>
-                                        </div>
-                                        <TrendingUp className={`w-8 h-8 ${item.trend === 'down' || item.metric === 'Incidents Prevented' ? 'text-green-500' : 'text-red-500'} ${item.trend === 'down' && item.metric !== 'Incidents Prevented' ? 'rotate-180' : ''}`} />
-                                    </div>
-                                    <p className={`text-sm mt-2 ${item.trend === 'down' || item.metric === 'Incidents Prevented' ? 'text-green-600' : 'text-blue-600'}`}>
-                                        {item.change} vs last month
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Network Map - Fit to aspect ratio */}
-                            <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
-                                
-                                <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-                                    <img src="./IIT-3rdWard.jpg" alt="Network Map" className="w-full h-auto" />
-                                    
-                                    {sensorData.map((sensor) => (
-                                        <div
-                                            key={sensor.id}
-                                            onClick={() => setSelectedSensor(sensor)}
-                                            className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 z-10"
-                                            style={{
-                                                left: `${sensor.x}%`,
-                                                top: `${sensor.y}%`,
-                                            }}
-                                        >
-                                            <div className={`w-3 h-3 rounded-full ${getStatusColor(sensor.status)} ring-3 ring-white shadow-lg`} />
-                                        </div>
-                                    ))}
-
-                                    {workOrders.map((order) => (
-                                        <div
-                                            key={order.id}
-                                            className="absolute transform -translate-x-1/2 -translate-y-1/2 z-5 animate-blink"
-                                            style={{
-                                                left: `${order.x}%`,
-                                                top: `${order.y}%`,
-                                            }}
-                                        >
-                                            <AlertTriangle className={`w-6 h-6 ${order.risk === 'critical' ? 'text-red-500' : order.risk === 'high' ? 'text-orange-500' : 'text-yellow-500'}`} />
-                                        </div>
-                                    ))}
-
-                                    {selectedSensor && (
-                                        <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-xl p-4 border-2 z-20" style={{borderColor: BRAND_COLORS.primary}}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <h3 className="font-bold">{selectedSensor.name}</h3>
-                                                    <p className="text-sm text-gray-600">{selectedSensor.id}</p>
-                                                </div>
-                                                <button onClick={() => setSelectedSensor(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-4 mt-3">
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Capacity</p>
-                                                    <p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.capacity}%`}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Flow Rate</p>
-                                                    <p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.flow} L/s`}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Head Height</p>
-                                                    <p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.headHeight} ft`}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-600">Battery</p>
-                                                    <p className="text-lg font-bold">{selectedSensor.error ? 'ERROR' : `${selectedSensor.battery}%`}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center justify-center space-x-6 mt-4">
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                                        <span className="text-sm text-gray-600">Normal</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                                        <span className="text-sm text-gray-600">Warning</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                                        <span className="text-sm text-gray-600">Critical</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Priority Work Orders */}
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold mb-4 flex items-center">
-                                    <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" />
-                                    Priority Work Orders
-                                </h2>
-                                <div className="space-y-3">
-                                    {workOrders.map((order) => (
-                                        <div key={order.id} className={`border-2 rounded-lg p-3 ${getRiskColor(order.risk)}`}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <p className="font-bold text-sm">{order.id}</p>
-                                                    <p className="text-xs opacity-75">{order.location}</p>
-
-                                                </div>
-                                                <span className="text-xs font-semibold uppercase">{order.risk}</span>
-                                            </div>
-                                            <p className="text-sm font-medium mb-1">{order.issue}</p>
-                                            <div className="flex justify-between text-xs mb-2">
-                                                <span>Impact: {order.impact}</span>
-                                                <span>ETA: {order.eta}</span>
-                                            </div>
-                                            {order.confidence && (
-                                                <>
-                                                    <div className="mt-2 bg-gray-200 rounded-full h-1.5">
-                                                        <div className="h-1.5 rounded-full" style={{width: `${order.confidence}%`, backgroundColor: BRAND_COLORS.primary}} />
-                                                    </div>
-                                                    <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
-                                                </>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Historical Trends */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <SimpleLineChart data={historicalData} />
-                            </div>
-
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <SimpleBarChart data={historicalData} />
-                            </div>
-                        </div>
-
-                        {/* Sensor Battery Health Summary - 16 sensors */}
-                        <div className="bg-white rounded-lg shadow p-6 mt-6">
-                            <h2 className="text-xl font-bold mb-4">Sensor Network Health</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                                {sensorData.map((sensor) => (
-                                    <div key={sensor.id} className={`p-4 rounded-lg border-2 ${sensor.error ? 'bg-red-50 border-red-300' : sensor.battery < 20 ? 'bg-yellow-50 border-yellow-300' : 'bg-green-50 border-green-300'}`}>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="font-bold text-sm">{sensor.id}</p>
-                                            {sensor.error ? (
-                                                <AlertTriangle className="w-5 h-5 text-red-500" />
-                                            ) : (
-                                                <Battery className={`w-5 h-5 ${sensor.battery > 50 ? 'text-green-500' : sensor.battery > 20 ? 'text-yellow-500' : 'text-red-500'}`} level={sensor.battery} />
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-gray-600 mb-1">{sensor.name}</p>
-                                        {sensor.error ? (
-                                            <p className="text-sm font-semibold text-red-600">SENSOR ERROR</p>
-                                        ) : (
-                                            <div>
-                                                <p className="text-sm font-semibold">{sensor.battery}%</p>
-                                                <div className="mt-1 bg-gray-200 rounded-full h-1.5">
-                                                    <div className={`h-1.5 rounded-full ${sensor.battery > 50 ? 'bg-green-500' : sensor.battery > 20 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{width: `${sensor.battery}%`}} />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </main>
-                </div>
-            );
-        };
-
-        // Flume Landing Page - WITH LIVE PLOTS
-// --- ErrorBoundary so charts can't take the whole app down ---
-class ChartBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  componentDidCatch(error, info) {
-    // Keep it visible for debugging but don't crash the app
-    console.error("Chart error:", error, info);
-    this.setState({ hasError: true, error });
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
-          Chart failed to render: {String(this.state.error?.message || this.state.error)}
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// --- Flume Landing (DROP-IN) ---
-// Flume Landing Page - PURE SVG (no Recharts)
-const FlumeLanding = ({ user, onLogout }) => {
-  const [error, setError] = React.useState(null);
-  const [status, setStatus] = React.useState("Connecting...");
-  const [timeSeriesData, setTimeSeriesData] = React.useState([]);
-  const [spatialProfileData, setSpatialProfileData] = React.useState([]);
-  const [spatialPoints, setSpatialPoints] = React.useState([]);
-
-  // --- CONFIG (unchanged) ---
-  const FLUME_CONFIG = {
-    API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', 
-    SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo', 
-    SHEET1_TAB: 'Sewer Water Level Monitor',
-    INSTALL_HEIGHT_CM_1: 55.0,
-    S1_X_CM: 90.0,
-
-    SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA', 
-    SHEET2_TAB: 'Sewer Water Level Monitor - 2',
-    INSTALL_HEIGHT_CM_2: 41.0,
-    S2_X_CM: 259.0,
-
-    FLUME_LENGTH_CM: 305.0,
-    YMIN_CM: 0.0,
-    YMAX_CM: 45.0,
-    POLL_EVERY_SECONDS: 2,
-    POINTS_TO_SHOW: 60
-  };
-
-  // --- helpers (unchanged) ---
-  const parseSheetTime = (val) => {
-    if (typeof val === 'number') {
-      const baseDate = new Date('1899-12-30T00:00:00Z');
-      const millis = baseDate.getTime() + (val * 86400000);
-      return new Date(millis);
-    }
-    const d = new Date(val);
-    return isNaN(d) ? null : d;
-  };
-
-  const fetchSheetData = async (sheetId, tabName, installHeight) => {
-    const range = encodeURIComponent(`${tabName}!A:Z`);
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${FLUME_CONFIG.API_KEY}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      let msg = `Google Sheets API Error: ${response.status}`;
-      try {
-        const j = await response.json();
-        if (j?.error?.message) msg = j.error.message;
-      } catch {}
-      if (/API key not valid/i.test(msg)) throw new Error("API Key is not valid. Check FLUME_CONFIG.API_KEY.");
-      if (/Unable to parse range/i.test(msg)) throw new Error(`Sheet tab "${tabName}" not found or incorrect.`);
-      if (/PERMISSION_DENIED/i.test(msg)) throw new Error("Sheet is not public. Share as 'Anyone with link: Viewer'.");
-      throw new Error(msg);
-    }
-    const json = await response.json();
-    const rows = json.values || [];
-    if (!rows.length) return [];
-
-    const header = rows[0].map(h => String(h).toLowerCase());
-    const tsCol  = header.indexOf("timestamp");
-    const valCol = header.indexOf("distance to water (cm)");
-    if (tsCol === -1 || valCol === -1) {
-      throw new Error(`Sheet "${tabName}" missing "Timestamp" or "Distance to Water (cm)" columns.`);
-    }
-
-    const out = [];
-    for (let i = 1; i < rows.length; i++) {
-      const ts = parseSheetTime(rows[i][tsCol]);
-      const dist = parseFloat(String(rows[i][valCol]).replace(",", ""));
-      if (ts && !isNaN(dist)) {
-        let h = installHeight - dist;
-        h = Math.max(FLUME_CONFIG.YMIN_CM, Math.min(FLUME_CONFIG.YMAX_CM, h));
-        out.push({ time: ts, height: h });
-      }
-    }
-    return out.sort((a,b) => a.time - b.time).slice(-FLUME_CONFIG.POINTS_TO_SHOW);
-  };
-
-  const refreshAllData = async () => {
-    try {
-      setError(null);
-      setStatus("Fetching data...");
-
-      const [d1, d2] = await Promise.all([
-        fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
-        fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2)
-      ]);
-
-      // Merge on timestamp for 2-series chart
-      const tsSet = new Set([...d1.map(d => d.time.getTime()), ...d2.map(d => d.time.getTime())]);
-      const merged = Array.from(tsSet).sort((a,b) => a-b).map(ts => {
-        const a1 = d1.find(d => d.time.getTime() === ts);
-        const a2 = d2.find(d => d.time.getTime() === ts);
-        return {
-          name: new Date(ts).toLocaleTimeString(),
-          time: new Date(ts),
-          s1_height: a1 ? a1.height : null,
-          s2_height: a2 ? a2.height : null,
-        };
-      });
-      setTimeSeriesData(merged);
-
-      // Spatial profile + points
-      const s1_last = d1.length ? d1[d1.length-1].height : null;
-      const s2_last = d2.length ? d2[d2.length-1].height : null;
-
-      const pts = [];
-      if (s1_last !== null) pts.push({ x: FLUME_CONFIG.S1_X_CM, z: s1_last });
-      if (s2_last !== null) pts.push({ x: FLUME_CONFIG.S2_X_CM, z: s2_last });
-      setSpatialPoints(pts);
-
-      let profile = [];
-      let slope_txt = "—";
-      let head_txt = "—";
-      if (pts.length === 2) {
-        const [p1, p2] = pts[0].x <= pts[1].x ? [pts[0], pts[1]] : [pts[1], pts[0]];
-        const m = (p2.z - p1.z) / (p2.x - p1.x);
-        const b = p1.z - m * p1.x;
-        profile = [
-          { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m*0 + b) },
-          { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m*FLUME_CONFIG.FLUME_LENGTH_CM + b) },
-        ];
-        const dx_m = (p2.x - p1.x) / 100.0;
-        const dz_cm = p2.z - p1.z;
-        slope_txt = (dz_cm / dx_m).toFixed(2);
-        head_txt = dz_cm.toFixed(2);
-      } else if (pts.length === 1) {
-        profile = [{ x: 0, z: pts[0].z }, { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: pts[0].z }];
-      }
-      setSpatialProfileData(profile);
-
-      const s1_stat = s1_last !== null ? `S1: ${s1_last.toFixed(1)} cm` : "S1: no data";
-      const s2_stat = s2_last !== null ? `S2: ${s2_last.toFixed(1)} cm` : "S2: no data";
-      setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1_stat} | ${s2_stat} | Slope: ${slope_txt} cm/m | ΔHead: ${head_txt} cm`);
-    } catch (e) {
-      console.error("Failed to fetch flume data:", e);
-      setError(e.message);
-      setStatus(`Error: ${e.message}. Retrying...`);
-    }
-  };
-
-  React.useEffect(() => {
-    if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
-      const msg = "API_KEY is not set. Please add it to FLUME_CONFIG.";
-      setError(msg);
-      setStatus(`Error: ${msg}`);
-      return;
-    }
-    refreshAllData();
-    const id = setInterval(refreshAllData, FLUME_CONFIG.POLL_EVERY_SECONDS * 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // ---------- Tiny SVG chart components ----------
-  const MultiLineTimeSeries = ({ data, yMin, yMax, series }) => {
-    const pad = { top: 10, right: 10, bottom: 22, left: 32 };
-    const W = 800, H = 260;
-    const innerW = W - pad.left - pad.right;
-    const innerH = H - pad.top - pad.bottom;
-
-    const xs = (i) => pad.left + (data.length <= 1 ? 0 : (i / (data.length - 1)) * innerW);
-    const ys = (v) => pad.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
-
-    const yTicks = 5;
-    const yVals = Array.from({ length: yTicks + 1 }, (_, i) => yMin + (i*(yMax-yMin)/yTicks));
-
-    // build polyline points for each series (skip nulls by breaking into segments)
-    const buildSegments = (key) => {
-      const segs = [];
-      let cur = [];
-      data.forEach((d, i) => {
-        const v = d[key];
-        if (v === null || v === undefined) {
-          if (cur.length) { segs.push(cur); cur = []; }
-        } else {
-          cur.push([xs(i), ys(v)]);
-        }
-      });
-      if (cur.length) segs.push(cur);
-      return segs;
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Brand colors
+    const BRAND_COLORS = {
+      primary: '#005c89',
+      dark: '#00264b',
+      light: '#bbc9cd'
     };
 
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-64">
-        {/* grid + y axis */}
-        {yVals.map((yv, i) => {
-          const y = ys(yv);
-          return (
-            <g key={i}>
-              <line x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-              <text x={pad.left-6} y={y} fontSize="10" fill="#555" textAnchor="end" dominantBaseline="middle">
-                {Math.round(yv)}
-              </text>
-            </g>
-          );
-        })}
-        {/* axes */}
-        <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
-        <line x1={pad.left} y1={pad.top+innerH} x2={pad.left+innerW} y2={pad.top+innerH} stroke="#666" />
-        {/* x labels (sparse for readability) */}
-        {data.map((d, i) => {
-          const show = data.length <= 10 ? true : i % Math.ceil(data.length/10) === 0;
-          if (!show) return null;
-          return (
-            <text key={i} x={xs(i)} y={pad.top+innerH+14} fontSize="10" fill="#555" textAnchor="middle">
-              {d.name}
-            </text>
-          );
-        })}
-        {/* series lines + dots */}
-        {series.map(({ key, color, label }) => (
-          <g key={key}>
-            {buildSegments(key).map((seg, j) => (
-              <polyline
-                key={j}
-                points={seg.map(([x,y]) => `${x},${y}`).join(' ')}
-                fill="none"
-                stroke={color}
-                strokeWidth="2"
-              />
+    // Demo users/roles
+    const USERS = {
+      'Grainger': { password: 'IIT', role: 'dashboard', name: 'Grainger' },
+      'Flume':    { password: 'IIT', role: 'flume',     name: 'Flume' },
+      'Wabash':   { password: 'IIT', role: 'wabash',    name: 'Wabash' }
+    };
+
+    // Icons
+    const AlertTriangle = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    );
+    const TrendingUp = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="23 6 13.5 15.5 8.5 10.5 1 18" />
+        <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="17 6 23 6 23 12" />
+      </svg>
+    );
+    const LogOut = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+    );
+    const Activity = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    );
+    const Battery = ({ className, level }) => {
+      const fillWidth = Math.max(0, Math.min(100, level)) * 0.15; // 100% -> 15 units wide
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <rect x="2" y="7" width="18" height="10" rx="1" strokeWidth="2" />
+          <rect x="3.5" y="8.5" width={fillWidth} height="7" fill="currentColor"
+                className={level > 50 ? 'text-green-500' : level > 20 ? 'text-yellow-500' : 'text-red-500'} />
+          <path d="M20 10h2v4h-2" strokeWidth="2" />
+        </svg>
+      );
+    };
+
+    // -----------------------
+    // Demo data for Grainger
+    // -----------------------
+    const sensorData = [
+      { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 58, y: 45, battery: 88 },
+      { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 78, y: 25, battery: 84 },
+      { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, x: 68, y: 45, battery: 85 },
+      { id: 'S-004', name: 'Indiana & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 83, y: 55, battery: 17 },
+      { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 65, battery: 79 },
+      { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 78, y: 35, battery: 67 },
+      { id: 'S-007', name: 'MLK & E 31st St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 92, y: 25, battery: 0, error: true },
+      { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 58, y: 55, battery: 88 },
+      { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 68, y: 35, battery: 73 },
+      { id: 'S-010', name: 'Indiana & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 83, y: 65, battery: 81 },
+      { id: 'S-011', name: 'Michigan & E 34th St', status: 'normal', capacity: 33, flow: 25, headHeight: 1.3, x: 78, y: 55, battery: 56 },
+      { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, x: 58, y: 25, battery: 94 },
+      { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, x: 68, y: 55, battery: 89 },
+      { id: 'S-014', name: 'MLK & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, x: 92, y: 45, battery: 76 },
+      { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 78, y: 65, battery: 15 },
+      { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 68, y: 25, battery: 83 },
+    ];
+
+    const workOrders = [
+      { id: 'WO-2401', location: 'MLK & E 31st St',       risk: 'critical', issue: 'Sensor error detected',   impact: 'High',   eta: '1 day',  x: 92, y: 25 },
+      { id: 'WO-2402', location: 'Near Michigan & 32nd',  risk: 'critical', issue: 'Partial blockage',        impact: 'High',   eta: '2 days', confidence: 91, x: 78, y: 30 },
+      { id: 'WO-2403', location: 'Near Federal & 34th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'Medium', eta: '3 days', confidence: 89, x: 68, y: 50 },
+      { id: 'WO-2404', location: 'Near Indiana & 35th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'High',   eta: '2 days', confidence: 87, x: 83, y: 60 },
+      { id: 'WO-2405', location: 'Near State & 34th',     risk: 'medium',   issue: 'Reduced flow capacity',   impact: 'Low',    eta: '5 days', confidence: 78, x: 58, y: 50 },
+    ];
+
+    const workingSensors = sensorData.filter(s => !s.error);
+    const avgCapacity = Math.round(workingSensors.reduce((sum, s) => sum + s.capacity, 0) / workingSensors.length);
+    const historicalData = [
+      { time: '00:00', capacity: Math.round(avgCapacity * 0.38), flow: 22 },
+      { time: '04:00', capacity: Math.round(avgCapacity * 0.46), flow: 26 },
+      { time: '08:00', capacity: Math.round(avgCapacity * 0.63), flow: 32 },
+      { time: '12:00', capacity: Math.round(avgCapacity * 0.74), flow: 37 },
+      { time: '16:00', capacity: Math.round(avgCapacity * 0.86), flow: 39 },
+      { time: '20:00', capacity: Math.round(avgCapacity * 0.93), flow: 38 },
+      { time: 'Now',   capacity: Math.round(avgCapacity),         flow: 40 },
+    ];
+    const performanceData = [
+      { metric: 'Incidents Prevented', value: '127',   change: '+82%', trend: 'up' },
+      { metric: 'Flooding Events',     value: '3',     change: '-67%', trend: 'down' },
+      { metric: 'Maintenance Cost',    value: '$42K',  change: '-38%', trend: 'down' },
+      { metric: 'CSO Volume Reduction',value: '220M gal', change: '-32%', trend: 'down' },
+    ];
+
+    // -------- Simple SVG charts for Grainger cards --------
+    const SimpleLineChart = ({ data }) => {
+      const maxValue = 100, minValue = 0;
+      const padding = { top: 10, right: 5, bottom: 20, left: 12 };
+      const chartWidth = 100 - padding.left - padding.right;
+      const chartHeight = 100 - padding.top - padding.bottom;
+      const getX = (i) => padding.left + (i / (data.length - 1)) * chartWidth;
+      const getY = (v) => padding.top + (1 - (v - minValue) / (maxValue - minValue)) * chartHeight;
+      const points = data.map((d, i) => `${getX(i)},${getY(d.capacity)}`).join(' ');
+      const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => ({ value: `${Math.round(maxValue * pct)}%`, y: getY(maxValue * pct) }));
+      return (
+        <div className="relative h-72 bg-gray-50 rounded-lg p-4">
+          <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
+          <svg className="w-full h-64" viewBox="0 0 100 100">
+            {yAxisLabels.map((l, i) => (
+              <g key={i}>
+                <text x={padding.left - 2} y={l.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">{l.value}</text>
+                <line x1={padding.left} y1={l.y} x2={padding.left + chartWidth} y2={l.y} stroke="#e5e7eb" strokeWidth="0.3" />
+              </g>
+            ))}
+            {data.map((d, i) => (
+              <text key={d.time} x={getX(i)} y={100 - padding.bottom + 7} fontSize="5" fill="#666" textAnchor="middle">{d.time}</text>
+            ))}
+            <line x1={padding.left} y1={getY(0)} x2={padding.left + chartWidth} y2={getY(0)} stroke="#666" strokeWidth="0.5" />
+            <line x1={padding.left} y1={padding.top} x2={padding.left} y2={getY(0)} stroke="#666" strokeWidth="0.5" />
+            <polyline points={points} fill="none" stroke="#ef4444" strokeWidth="1.5" />
+            {data.map((d, i) => <circle key={i} cx={getX(i)} cy={getY(d.capacity)} r="1.5" fill="#ef4444" />)}
+          </svg>
+        </div>
+      );
+    };
+
+    const SimpleBarChart = ({ data }) => {
+      const maxValue = Math.max(...data.map(d => d.flow));
+      const padding = { top: 10, right: 5, bottom: 20, left: 12 };
+      const chartWidth = 100 - padding.left - padding.right;
+      const chartHeight = 100 - padding.top - padding.bottom;
+      const barWidth = (chartWidth / data.length) * 0.8;
+      const barSpacing = (chartWidth / data.length) * 0.2;
+      const getY = (v) => padding.top + (1 - v / maxValue) * chartHeight;
+      const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(p => ({ value: Math.round(maxValue * p), y: getY(maxValue * p) }));
+      return (
+        <div className="relative h-72 bg-gray-50 rounded-lg p-4">
+          <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
+          <svg className="w-full h-64" viewBox="0 0 100 100">
+            {yAxisLabels.map((l, i) => (
+              <g key={i}>
+                <text x={padding.left - 2} y={l.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">{l.value}</text>
+                <line x1={padding.left} y1={l.y} x2={padding.left + chartWidth} y2={l.y} stroke="#e5e7eb" strokeWidth="0.3" />
+              </g>
             ))}
             {data.map((d, i) => {
-              const v = d[key];
-              if (v == null) return null;
-              return (
-                <circle key={i} cx={xs(i)} cy={ys(v)} r="2.5" fill={color}>
-                  <title>{`${label} @ ${d.name}: ${v.toFixed(1)} cm`}</title>
-                </circle>
-              );
+              if (i % 2 !== 0) return null;
+              const x = padding.left + i * (barWidth + barSpacing) + (barWidth / 2) + (barSpacing / 2);
+              return <text key={d.time} x={x} y={100 - padding.bottom + 7} fontSize="5" fill="#666" textAnchor="middle">{d.time}</text>;
             })}
-          </g>
-        ))}
-        {/* legend */}
-        <g>
-          {series.map(({ label, color }, idx) => (
-            <g key={label} transform={`translate(${pad.left + idx*140}, ${pad.top})`}>
-              <rect x="0" y="-8" width="12" height="4" fill={color} />
-              <text x="18" y="-6" fontSize="12" fill="#333">{label}</text>
-            </g>
-          ))}
-        </g>
-        {/* y-axis label */}
-        <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">
-          Water Height (cm)
-        </text>
-      </svg>
-    );
-  };
+            <line x1={padding.left} y1={getY(0)} x2={padding.left + chartWidth} y2={getY(0)} stroke="#666" strokeWidth="0.5" />
+            <line x1={padding.left} y1={padding.top} x2={padding.left} y2={getY(0)} stroke="#666" strokeWidth="0.5" />
+            {data.map((d, i) => {
+              const x = padding.left + i * (barWidth + barSpacing) + (barSpacing / 2);
+              const y = getY(d.flow);
+              const h = getY(0) - y;
+              return <rect key={d.time} x={x} y={y} width={barWidth} height={h} className="fill-blue-500 transition-all hover:fill-blue-600">
+                <title>{`${d.time}: ${d.flow} L/s`}</title>
+              </rect>;
+            })}
+          </svg>
+        </div>
+      );
+    };
 
-  const SpatialProfileChart = ({ profile, points, yMin, yMax, xMax }) => {
-    const pad = { top: 10, right: 10, bottom: 28, left: 40 };
-    const W = 800, H = 240;
-    const innerW = W - pad.left - pad.right;
-    const innerH = H - pad.top - pad.bottom;
-
-    const xs = (x) => pad.left + (x / xMax) * innerW;
-    const ys = (z) => pad.top + (1 - (z - yMin) / (yMax - yMin)) * innerH;
-
-    const yTicks = 5;
-    const yVals = Array.from({ length: yTicks + 1 }, (_, i) => yMin + (i*(yMax-yMin)/yTicks));
-    const xTicks = 6;
-    const xVals = Array.from({ length: xTicks + 1 }, (_, i) => Math.round((i*xMax/xTicks)));
-
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-72">
-        {/* grid */}
-        {yVals.map((yv, i) => {
-          const y = ys(yv);
-          return <line key={'y'+i} x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" />;
-        })}
-        {xVals.map((xv, i) => {
-          const x = xs(xv);
-          return <line key={'x'+i} x1={x} y1={pad.top} x2={x} y2={pad.top+innerH} stroke="#f0f0f0" />;
-        })}
-        {/* axes */}
-        <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
-        <line x1={pad.left} y1={pad.top+innerH} x2={pad.left+innerW} y2={pad.top+innerH} stroke="#666" />
-        {/* labels */}
-        {yVals.map((yv,i)=>(
-          <text key={i} x={pad.left-6} y={ys(yv)} fontSize="10" fill="#555" textAnchor="end" dominantBaseline="middle">
-            {Math.round(yv)}
-          </text>
-        ))}
-        {xVals.map((xv,i)=>(
-          <text key={i} x={xs(xv)} y={pad.top+innerH+16} fontSize="10" fill="#555" textAnchor="middle">
-            {xv}
-          </text>
-        ))}
-        {/* profile line */}
-        {profile.length >= 2 && (
-          <polyline
-            points={profile.map(p => `${xs(p.x)},${ys(p.z)}`).join(' ')}
-            fill="none"
-            stroke="#8884d8"
-            strokeWidth="2"
-          />
-        )}
-        {/* sensor points */}
-        {points.map((p, i) => (
-          <circle key={i} cx={xs(p.x)} cy={ys(p.z)} r="4" fill="#ff0000">
-            <title>{`Sensor @ ${Math.round(p.x)} cm: ${p.z.toFixed(1)} cm`}</title>
-          </circle>
-        ))}
-        {/* axis titles */}
-        <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">
-          Water Height (cm)
-        </text>
-        <text x={pad.left + innerW/2} y={pad.top+innerH+24} fontSize="12" fill="#333" textAnchor="middle">
-          Position along flume (cm)
-        </text>
-      </svg>
-    );
-  };
-  // ---------- end tiny charts ----------
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader user={user} onLogout={onLogout} />
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
-            <Activity className="w-10 h-10" style={{ color: BRAND_COLORS.primary }} />
-          </div>
-
-          <div
-            className="text-sm text-gray-600 mb-6 p-4 rounded-lg"
-            style={{ backgroundColor: error ? '#fff0f0' : BRAND_COLORS.light, color: error ? 'red' : BRAND_COLORS.dark }}
-          >
-            {status}
-          </div>
-
-          {/* Time Series (two lines) */}
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Live Water Level</h3>
-            <MultiLineTimeSeries
-              data={timeSeriesData}
-              yMin={FLUME_CONFIG.YMIN_CM}
-              yMax={FLUME_CONFIG.YMAX_CM}
-              series={[
-                { key: 's1_height', color: '#8884d8', label: 'Site 1 (cm)' },
-                { key: 's2_height', color: '#82ca9d', label: 'Site 2 (cm)' },
-              ]}
-            />
-          </div>
-
-          {/* Spatial Profile */}
-          <div>
-            <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
-            <SpatialProfileChart
-              profile={spatialProfileData}
-              points={spatialPoints}
-              yMin={FLUME_CONFIG.YMIN_CM}
-              yMax={FLUME_CONFIG.YMAX_CM}
-              xMax={FLUME_CONFIG.FLUME_LENGTH_CM}
-            />
+    // -----------------------
+    // Login
+    // -----------------------
+    const LoginPage = ({ onLogin }) => {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [showCredentials, setShowCredentials] = useState(false);
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        setError('');
+        const user = USERS[username];
+        if (user && user.password === password) onLogin({ username, ...user });
+        else setError('Invalid username or password');
+      };
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4" style={{background: `linear-gradient(to bottom right, ${BRAND_COLORS.primary}, ${BRAND_COLORS.dark})`}}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-16"
+                     onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
+                <svg style={{display:'none'}} className="w-16 h-16" fill="none" stroke={BRAND_COLORS.primary} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-800">DrainWatch</h1>
+              <p className="text-gray-600 mt-2">Climate-Resilient Infrastructure Operations</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                <input type="text" value={username} onChange={(e)=>setUsername(e.target.value)}
+                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                       placeholder="Enter username" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)}
+                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                       placeholder="••••••••" required />
+              </div>
+              {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
+              <button type="submit" className="w-full text-white font-semibold py-3 rounded-lg transition duration-200"
+                      style={{backgroundColor: BRAND_COLORS.primary}}
+                      onMouseOver={(e)=>e.currentTarget.style.backgroundColor = BRAND_COLORS.dark}
+                      onMouseOut={(e)=>e.currentTarget.style.backgroundColor = BRAND_COLORS.primary}>Sign In</button>
+            </form>
+            <div className="mt-6">
+              <button onClick={()=>setShowCredentials(!showCredentials)} className="text-sm underline" style={{color: BRAND_COLORS.primary}}>
+                {showCredentials ? 'Hide' : 'Show'} Demo Credentials
+              </button>
+              {showCredentials && (
+                <div className="mt-4 rounded-lg p-4 text-xs space-y-2" style={{backgroundColor: BRAND_COLORS.light}}>
+                  <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
+                  <div><span className="font-medium">Grainger:</span> IIT</div>
+                  <div><span className="font-medium">Flume:</span> IIT</div>
+                  <div><span className="font-medium">Wabash:</span> IIT</div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </main>
-    </div>
-  );
-};
+      );
+    };
 
-        // Wabash Landing Page
-        const WabashLanding = ({ user, onLogout }) => {
-            return (
-                <div className="min-h-screen bg-gray-50">
-                    <DashboardHeader user={user} onLogout={onLogout} />
-                    
-                    <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-                            <Activity className="w-24 h-24 mx-auto mb-6" style={{color: BRAND_COLORS.primary}} />
-                            <h2 className="text-3xl font-bold text-gray-800 mb-4">Wabash Sensor Pair</h2>
-                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
-                            <div className="max-w-2xl mx-auto text-left rounded-lg p-6" style={{backgroundColor: BRAND_COLORS.light}}>
-                                <h3 className="font-bold text-lg mb-3" style={{color: BRAND_COLORS.dark}}>Planned Features:</h3>
-                                <ul className="space-y-2 text-gray-700">
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Real-time data from sensor pair
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Live plotting capabilities
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Data logging and export
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>
-                                        Performance analytics
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </main>
+    // -----------------------
+    // Header
+    // -----------------------
+    const DashboardHeader = ({ user, onLogout }) => (
+      <header className="text-white shadow-lg bg-sky-600">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-8"
+                   onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }} />
+              <svg style={{display:'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+              </svg>
+              <div>
+                <h1 className="text-2xl font-bold">DrainWatch</h1>
+                <p className="text-sm" style={{color: BRAND_COLORS.light}}>Climate-Resilient Infrastructure Operations</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right"><p className="text-sm font-medium">{user.name}</p></div>
+              <button onClick={onLogout} className="flex items-center space-x-2 px-4 py-2 rounded-lg transition"
+                      style={{backgroundColor: BRAND_COLORS.dark}}
+                      onMouseOver={(e)=>e.currentTarget.style.opacity='0.9'}
+                      onMouseOut={(e)=>e.currentTarget.style.opacity='1'}>
+                <LogOut className="w-4 h-4" /><span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+
+    // -----------------------
+    // Grainger dashboard
+    // -----------------------
+    const GraingerDashboard = ({ user, onLogout }) => {
+      const [selectedSensor, setSelectedSensor] = useState(null);
+      const getStatusColor = (status) => status === 'critical' ? 'bg-red-500' : status === 'warning' ? 'bg-yellow-500' : 'bg-green-500';
+      const getRiskColor = (risk) =>
+        risk === 'critical' ? 'bg-red-100 text-red-800 border-red-300' :
+        risk === 'high'     ? 'bg-orange-100 text-orange-800 border-orange-300' :
+        risk === 'medium'   ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                              'bg-blue-100 text-blue-800 border-blue-300';
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <DashboardHeader user={user} onLogout={onLogout} />
+          <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {performanceData.map((item, idx) => (
+                <div key={idx} className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">{item.metric}</p>
+                      <p className="text-2xl font-bold mt-1">{item.value}</p>
+                    </div>
+                    <TrendingUp className={`w-8 h-8 ${item.trend === 'down' || item.metric === 'Incidents Prevented' ? 'text-green-500' : 'text-red-500'} ${item.trend === 'down' && item.metric !== 'Incidents Prevented' ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className={`text-sm mt-2 ${item.trend === 'down' || item.metric === 'Incidents Prevented' ? 'text-green-600' : 'text-blue-600'}`}>{item.change} vs last month</p>
                 </div>
-            );
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
+                <div className="relative bg-gray-100 rounded-lg overflow-hidden">
+                  <img src="./IIT-3rdWard.jpg" alt="Network Map" className="w-full h-auto" />
+                  {sensorData.map((sensor) => (
+                    <div key={sensor.id} onClick={()=>setSelectedSensor(sensor)}
+                         className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 z-10"
+                         style={{ left: `${sensor.x}%`, top: `${sensor.y}%` }}>
+                      <div className={`w-3 h-3 rounded-full ${getStatusColor(sensor.status)} ring-3 ring-white shadow-lg`} />
+                    </div>
+                  ))}
+                  {workOrders.map((order) => (
+                    <div key={order.id} className="absolute transform -translate-x-1/2 -translate-y-1/2 z-5 animate-blink"
+                         style={{ left: `${order.x}%`, top: `${order.y}%` }}>
+                      <AlertTriangle className={`w-6 h-6 ${order.risk === 'critical' ? 'text-red-500' : order.risk === 'high' ? 'text-orange-500' : 'text-yellow-500'}`} />
+                    </div>
+                  ))}
+                  {selectedSensor && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-xl p-4 border-2 z-20" style={{borderColor: BRAND_COLORS.primary}}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-bold">{selectedSensor.name}</h3>
+                          <p className="text-sm text-gray-600">{selectedSensor.id}</p>
+                        </div>
+                        <button onClick={()=>setSelectedSensor(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4 mt-3">
+                        <div><p className="text-xs text-gray-600">Capacity</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.capacity}%`}</p></div>
+                        <div><p className="text-xs text-gray-600">Flow Rate</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.flow} L/s`}</p></div>
+                        <div><p className="text-xs text-gray-600">Head Height</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.headHeight} ft`}</p></div>
+                        <div><p className="text-xs text-gray-600">Battery</p><p className="text-lg font-bold">{selectedSensor.error ? 'ERROR' : `${selectedSensor.battery}%`}</p></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-center space-x-6 mt-4">
+                  <div className="flex items-center space-x-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-gray-600">Normal</span></div>
+                  <div className="flex items-center space-x-2"><div className="w-3 h-3 rounded-full bg-yellow-500" /><span className="text-sm text-gray-600">Warning</span></div>
+                  <div className="flex items-center space-x-2"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-sm text-gray-600">Critical</span></div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-bold mb-4 flex items-center">
+                  <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" /> Priority Work Orders
+                </h2>
+                <div className="space-y-3">
+                  {workOrders.map((order) => (
+                    <div key={order.id} className={`border-2 rounded-lg p-3 ${getRiskColor(order.risk)}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-bold text-sm">{order.id}</p>
+                          <p className="text-xs opacity-75">{order.location}</p>
+                        </div>
+                        <span className="text-xs font-semibold uppercase">{order.risk}</span>
+                      </div>
+                      <p className="text-sm font-medium mb-1">{order.issue}</p>
+                      <div className="flex justify-between text-xs mb-2">
+                        <span>Impact: {order.impact}</span><span>ETA: {order.eta}</span>
+                      </div>
+                      {order.confidence && (
+                        <>
+                          <div className="mt-2 bg-gray-200 rounded-full h-1.5">
+                            <div className="h-1.5 rounded-full" style={{width: `${order.confidence}%`, backgroundColor: BRAND_COLORS.primary}} />
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <div className="bg-white rounded-lg shadow p-6"><SimpleLineChart data={historicalData} /></div>
+              <div className="bg-white rounded-lg shadow p-6"><SimpleBarChart data={historicalData} /></div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6 mt-6">
+              <h2 className="text-xl font-bold mb-4">Sensor Network Health</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+                {sensorData.map((sensor) => (
+                  <div key={sensor.id} className={`p-4 rounded-lg border-2 ${sensor.error ? 'bg-red-50 border-red-300' : sensor.battery < 20 ? 'bg-yellow-50 border-yellow-300' : 'bg-green-50 border-green-300'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-bold text-sm">{sensor.id}</p>
+                      {sensor.error ? <AlertTriangle className="w-5 h-5 text-red-500" /> :
+                        <Battery className="w-5 h-5" level={sensor.battery} />}
+                    </div>
+                    <p className="text-xs text-gray-600 mb-1">{sensor.name}</p>
+                    {sensor.error ? (
+                      <p className="text-sm font-semibold text-red-600">SENSOR ERROR</p>
+                    ) : (
+                      <div>
+                        <p className="text-sm font-semibold">{sensor.battery}%</p>
+                        <div className="mt-1 bg-gray-200 rounded-full h-1.5">
+                          <div className={`${sensor.battery > 50 ? 'bg-green-500' : sensor.battery > 20 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{width: `${sensor.battery}%`, height:'6px', borderRadius:'9999px'}} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    // -----------------------
+    // Flume landing (PURE SVG + Sheets API)
+    // -----------------------
+    const FlumeLanding = ({ user, onLogout }) => {
+      const [error, setError] = useState(null);
+      const [status, setStatus] = useState("Connecting...");
+      const [timeSeriesData, setTimeSeriesData] = useState([]);
+      const [spatialProfileData, setSpatialProfileData] = useState([]);
+      const [spatialPoints, setSpatialPoints] = useState([]);
+
+      const FLUME_CONFIG = {
+        API_KEY: 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo', // <-- paste your key
+        SHEET1_ID: '1EdMfRA7FD7VKHPC-2YFzPbOIxMP292V5I14uG2NjlZo',
+        SHEET1_TAB: 'Sewer Water Level Monitor',
+        INSTALL_HEIGHT_CM_1: 55.0,
+        S1_X_CM: 90.0,
+
+        SHEET2_ID: '18SKMCgXKuoETTM2wjOr92JGJ1LPX8Izm8g1bAI627jA',
+        SHEET2_TAB: 'Sewer Water Level Monitor - 2',
+        INSTALL_HEIGHT_CM_2: 41.0,
+        S2_X_CM: 259.0,
+
+        FLUME_LENGTH_CM: 305.0,
+        YMIN_CM: 0.0,
+        YMAX_CM: 45.0,
+        POLL_EVERY_SECONDS: 10,
+        POINTS_TO_SHOW: 60
+      };
+
+      // Helper: parse Google serial or ISO string
+      const parseSheetTime = (val) => {
+        if (typeof val === 'number') {
+          const base = new Date('1899-12-30T00:00:00Z').getTime();
+          return new Date(base + val * 86400000);
+        }
+        const d = new Date(val);
+        return isNaN(d) ? null : d;
+      };
+
+      // Fetch only needed columns and values
+      const fetchSheetData = async (sheetId, tabName, installHeight) => {
+        const range = encodeURIComponent(`${tabName}!A:B`); // A: timestamp, B: distance
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${FLUME_CONFIG.API_KEY}&fields=values&majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
+        const res = await fetch(url, { credentials: 'omit' });
+        if (!res.ok) {
+          let msg = `Sheets API HTTP ${res.status}`;
+          try { const j = await res.json(); if (j?.error?.message) msg = j.error.message; } catch {}
+          if (/API key not valid/i.test(msg)) throw new Error("API key not valid, or Sheets API not enabled.");
+          if (/PERMISSION_DENIED/i.test(msg)) throw new Error("Make each sheet 'Anyone with the link → Viewer'.");
+          if (/Unable to parse range/i.test(msg)) throw new Error(`Tab name mismatch: "${tabName}"`);
+          throw new Error(msg);
+        }
+        const json = await res.json();
+        const rows = json.values || [];
+        if (!rows.length) return [];
+        const header = rows[0].map(h => String(h).toLowerCase());
+        const tsCol  = header.indexOf("timestamp");
+        const valCol = header.indexOf("distance to water (cm)");
+        if (tsCol === -1 || valCol === -1) throw new Error(`Missing headers in "${tabName}": need "Timestamp" and "Distance to Water (cm)"`);
+        const out = [];
+        for (let i = 1; i < rows.length; i++) {
+          const ts = parseSheetTime(rows[i][tsCol]);
+          const dist = parseFloat(String(rows[i][valCol]).replace(",", ""));
+          if (ts && !isNaN(dist)) {
+            let h = installHeight - dist;
+            h = Math.max(FLUME_CONFIG.YMIN_CM, Math.min(FLUME_CONFIG.YMAX_CM, h));
+            out.push({ time: ts, height: h });
+          }
+        }
+        // Keep only recent tail
+        return out.slice(-FLUME_CONFIG.POINTS_TO_SHOW);
+      };
+
+      const refreshAllData = async () => {
+        try {
+          if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
+            const msg = "API_KEY is not set. Add it in FLUME_CONFIG.";
+            setError(msg); setStatus(`Error: ${msg}`); return;
+          }
+          setError(null);
+          setStatus("Fetching data...");
+
+          const [d1, d2] = await Promise.all([
+            fetchSheetData(FLUME_CONFIG.SHEET1_ID, FLUME_CONFIG.SHEET1_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_1),
+            fetchSheetData(FLUME_CONFIG.SHEET2_ID, FLUME_CONFIG.SHEET2_TAB, FLUME_CONFIG.INSTALL_HEIGHT_CM_2)
+          ]);
+
+          // Merge times for 2-line series
+          const allTs = new Set([...d1.map(d => d.time.getTime()), ...d2.map(d => d.time.getTime())]);
+          const merged = Array.from(allTs).sort((a,b)=>a-b).map(ts => ({
+            name: new Date(ts).toLocaleTimeString(),
+            time: new Date(ts),
+            s1_height: d1.find(d => d.time.getTime() === ts)?.height ?? null,
+            s2_height: d2.find(d => d.time.getTime() === ts)?.height ?? null
+          }));
+          setTimeSeriesData(merged);
+
+          // Spatial profile
+          const s1 = d1.length ? d1[d1.length-1].height : null;
+          const s2 = d2.length ? d2[d2.length-1].height : null;
+          const pts = [];
+          if (s1 !== null) pts.push({ x: FLUME_CONFIG.S1_X_CM, z: s1 });
+          if (s2 !== null) pts.push({ x: FLUME_CONFIG.S2_X_CM, z: s2 });
+          setSpatialPoints(pts);
+
+          let profile = [], slopeTxt = "—", headTxt = "—";
+          if (pts.length === 2) {
+            const [p1, p2] = pts[0].x <= pts[1].x ? [pts[0], pts[1]] : [pts[1], pts[0]];
+            const m = (p2.z - p1.z) / (p2.x - p1.x);
+            const b = p1.z - m * p1.x;
+            profile = [
+              { x: 0, z: Math.max(FLUME_CONFIG.YMIN_CM, m*0 + b) },
+              { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: Math.max(FLUME_CONFIG.YMIN_CM, m*FLUME_CONFIG.FLUME_LENGTH_CM + b) }
+            ];
+            const dx_m = (p2.x - p1.x) / 100.0;
+            const dz_cm = p2.z - p1.z;
+            slopeTxt = (dz_cm / dx_m).toFixed(2);
+            headTxt = dz_cm.toFixed(2);
+          } else if (pts.length === 1) {
+            profile = [{ x: 0, z: pts[0].z }, { x: FLUME_CONFIG.FLUME_LENGTH_CM, z: pts[0].z }];
+          }
+          setSpatialProfileData(profile);
+
+          const s1stat = s1 !== null ? `S1: ${s1.toFixed(1)} cm` : 'S1: no data';
+          const s2stat = s2 !== null ? `S2: ${s2.toFixed(1)} cm` : 'S2: no data';
+          setStatus(`Updated: ${new Date().toLocaleTimeString()} | ${s1stat} | ${s2stat} | Slope: ${slopeTxt} cm/m | ΔHead: ${headTxt} cm`);
+        } catch (e) {
+          console.error(e);
+          setError(e.message);
+          setStatus(`Error: ${e.message}. Retrying...`);
+        }
+      };
+
+      useEffect(() => {
+        refreshAllData();
+        const id = setInterval(refreshAllData, FLUME_CONFIG.POLL_EVERY_SECONDS * 1000);
+        return () => clearInterval(id);
+      }, []);
+
+      // Small SVG chart components
+      const MultiLineTimeSeries = ({ data, yMin, yMax, series }) => {
+        const pad = { top: 10, right: 10, bottom: 22, left: 32 };
+        const W = 800, H = 260, innerW = W - pad.left - pad.right, innerH = H - pad.top - pad.bottom;
+        const xs = (i) => pad.left + (data.length <= 1 ? 0 : (i / (data.length - 1)) * innerW);
+        const ys = (v) => pad.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+        const yTicks = 5, yVals = Array.from({length: yTicks+1}, (_,i)=>yMin + i*(yMax-yMin)/yTicks);
+        const buildSegments = (key) => {
+          const segs=[], cur=[];
+          data.forEach((d,i)=>{ const v=d[key];
+            if (v==null) { if (cur.length){segs.push(cur.slice()); cur.length=0;} }
+            else cur.push([xs(i), ys(v)]);
+          });
+          if (cur.length) segs.push(cur);
+          return segs;
         };
+        return (
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-64">
+            {yVals.map((yv,i)=>{const y=ys(yv); return (
+              <g key={i}>
+                <line x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" />
+                <text x={pad.left-6} y={y} fontSize="10" fill="#555" textAnchor="end" dominantBaseline="middle">{Math.round(yv)}</text>
+              </g>
+            );})}
+            <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
+            <line x1={pad.left} y1={pad.top+innerH} x2={pad.left+innerW} y2={pad.top+innerH} stroke="#666" />
+            {data.map((d,i)=>{ const show = data.length<=10 || i%Math.ceil(data.length/10)===0;
+              return show ? <text key={i} x={xs(i)} y={pad.top+innerH+14} fontSize="10" fill="#555" textAnchor="middle">{d.name}</text> : null;
+            })}
+            {series.map(({key,color,label})=>(
+              <g key={key}>
+                {buildSegments(key).map((seg,j)=>
+                  <polyline key={j} points={seg.map(([x,y])=>`${x},${y}`).join(' ')} fill="none" stroke={color} strokeWidth="2" />
+                )}
+                {data.map((d,i)=> d[key]==null?null:<circle key={i} cx={xs(i)} cy={ys(d[key])} r="2.5" fill={color}><title>{`${label} @ ${d.name}: ${d[key].toFixed(1)} cm`}</title></circle>)}
+              </g>
+            ))}
+            <g>
+              {series.map(({label,color},idx)=>(
+                <g key={label} transform={`translate(${pad.left + idx*140}, ${pad.top})`}>
+                  <rect x="0" y="-8" width="12" height="4" fill={color} />
+                  <text x="18" y="-6" fontSize="12" fill="#333">{label}</text>
+                </g>
+              ))}
+            </g>
+            <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">Water Height (cm)</text>
+          </svg>
+        );
+      };
 
-        const App = () => {
-            const [user, setUser] = useState(null);
+      const SpatialProfileChart = ({ profile, points, yMin, yMax, xMax }) => {
+        const pad = { top: 10, right: 10, bottom: 28, left: 40 };
+        const W = 800, H = 240, innerW = W - pad.left - pad.right, innerH = H - pad.top - pad.bottom;
+        const xs = (x) => pad.left + (x / xMax) * innerW;
+        const ys = (z) => pad.top + (1 - (z - yMin) / (yMax - yMin)) * innerH;
+        const yTicks = 5, yVals = Array.from({length:yTicks+1},(_,i)=>yMin + i*(yMax-yMin)/yTicks);
+        const xTicks = 6, xVals = Array.from({length:xTicks+1},(_,i)=>Math.round(i*xMax/xTicks));
+        return (
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-72">
+            {yVals.map((yv,i)=>{const y=ys(yv); return <line key={'y'+i} x1={pad.left} y1={y} x2={pad.left+innerW} y2={y} stroke="#e5e7eb" />;})}
+            {xVals.map((xv,i)=>{const x=xs(xv); return <line key={'x'+i} x1={x} y1={pad.top} x2={x} y2={pad.top+innerH} stroke="#f0f0f0" />;})}
+            <line x1={pad.left} y1={pad.top} x2={pad.left} y2={pad.top+innerH} stroke="#666" />
+            <line x1={pad.left} y1={pad.top+innerH} x2={pad.left+innerW} y2={pad.top+innerH} stroke="#666" />
+            {yVals.map((yv,i)=>
+              <text key={i} x={pad.left-6} y={ys(yv)} fontSize="10" fill="#555" textAnchor="end" dominantBaseline="middle">{Math.round(yv)}</text>
+            )}
+            {xVals.map((xv,i)=>
+              <text key={i} x={xs(xv)} y={pad.top+innerH+16} fontSize="10" fill="#555" textAnchor="middle">{xv}</text>
+            )}
+            {profile.length>=2 && <polyline points={profile.map(p=>`${xs(p.x)},${ys(p.z)}`).join(' ')} fill="none" stroke="#8884d8" strokeWidth="2" />}
+            {points.map((p,i)=><circle key={i} cx={xs(p.x)} cy={ys(p.z)} r="4" fill="#ff0000"><title>{`Sensor @ ${Math.round(p.x)} cm: ${p.z.toFixed(1)} cm`}</title></circle>)}
+            <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">Water Height (cm)</text>
+            <text x={pad.left + innerW/2} y={pad.top+innerH+24} fontSize="12" fill="#333" textAnchor="middle">Position along flume (cm)</text>
+          </svg>
+        );
+      };
 
-            useEffect(() => {
-                const savedUser = localStorage.getItem('drainwatch_user');
-                if (savedUser) {
-                    setUser(JSON.parse(savedUser));
-                }
-            }, []);
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <DashboardHeader user={user} onLogout={onLogout} />
+          <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-3xl font-bold text-gray-800">Live Flume Lab Monitor</h2>
+                <Activity className="w-10 h-10" style={{ color: BRAND_COLORS.primary }} />
+              </div>
+              <div className="text-sm text-gray-600 mb-6 p-4 rounded-lg"
+                   style={{ backgroundColor: error ? '#fff0f0' : BRAND_COLORS.light, color: error ? 'red' : BRAND_COLORS.dark }}>
+                {status}
+              </div>
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Live Water Level</h3>
+                <MultiLineTimeSeries
+                  data={timeSeriesData}
+                  yMin={FLUME_CONFIG.YMIN_CM}
+                  yMax={FLUME_CONFIG.YMAX_CM}
+                  series={[
+                    { key: 's1_height', color: '#8884d8', label: 'Site 1 (cm)' },
+                    { key: 's2_height', color: '#82ca9d', label: 'Site 2 (cm)' },
+                  ]}
+                />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
+                <SpatialProfileChart
+                  profile={spatialProfileData}
+                  points={spatialPoints}
+                  yMin={FLUME_CONFIG.YMIN_CM}
+                  yMax={FLUME_CONFIG.YMAX_CM}
+                  xMax={FLUME_CONFIG.FLUME_LENGTH_CM}
+                />
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    };
 
-            const handleLogin = (userData) => {
-                setUser(userData);
-                localStorage.setItem('drainwatch_user', JSON.stringify(userData));
-            };
+    // -----------------------
+    // Wabash placeholder
+    // -----------------------
+    const WabashLanding = ({ user, onLogout }) => (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader user={user} onLogout={onLogout} />
+        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+            <Activity className="w-24 h-24 mx-auto mb-6" style={{color: BRAND_COLORS.primary}} />
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">Wabash Sensor Pair</h2>
+            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
+            <div className="max-w-2xl mx-auto text-left rounded-lg p-6" style={{backgroundColor: BRAND_COLORS.light}}>
+              <h3 className="font-bold text-lg mb-3" style={{color: BRAND_COLORS.dark}}>Planned Features:</h3>
+              <ul className="space-y-2 text-gray-700">
+                <li className="flex items-start"><span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>Real-time data from sensor pair</li>
+                <li className="flex items-start"><span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>Live plotting capabilities</li>
+                <li className="flex items-start"><span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>Data logging and export</li>
+                <li className="flex items-start"><span className="mr-2" style={{color: BRAND_COLORS.primary}}>•</span>Performance analytics</li>
+              </ul>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
 
-            const handleLogout = () => {
-                setUser(null);
-                localStorage.removeItem('drainwatch_user');
-            };
+    // -----------------------
+    // App
+    // -----------------------
+    const App = () => {
+      const [user, setUser] = useState(null);
+      useEffect(() => {
+        const saved = localStorage.getItem('drainwatch_user');
+        if (saved) setUser(JSON.parse(saved));
+      }, []);
+      const handleLogin = (ud) => { setUser(ud); localStorage.setItem('drainwatch_user', JSON.stringify(ud)); };
+      const handleLogout = () => { setUser(null); localStorage.removeItem('drainwatch_user'); };
+      if (!user) return <LoginPage onLogin={handleLogin} />;
+      switch (user.role) {
+        case 'dashboard': return <GraingerDashboard user={user} onLogout={handleLogout} />;
+        case 'flume':     return <FlumeLanding     user={user} onLogout={handleLogout} />;
+        case 'wabash':    return <WabashLanding    user={user} onLogout={handleLogout} />;
+        default:          return <LoginPage onLogin={handleLogin} />;
+      }
+    };
 
-            if (!user) {
-                return <LoginPage onLogin={handleLogin} />;
-            }
-
-            switch (user.role) {
-                case 'dashboard':
-                    return <GraingerDashboard user={user} onLogout={handleLogout} />;
-                case 'flume':
-                    return <FlumeLanding user={user} onLogout={handleLogout} />;
-                case 'wabash':
-                    return <WabashLanding user={user} onLogout={handleLogout} />;
-                default:
-                    return <LoginPage onLogin={handleLogin} />;
-            }
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
 </body>
 </html>
