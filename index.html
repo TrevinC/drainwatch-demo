@@ -84,32 +84,35 @@
             );
         };
 
-        // Mock data - 16 sensors with S-007 error, S-004 and S-015 low battery
+        // Sensor coordinates from last fix
         const sensorData = [
-            { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 55, y: 38, battery: 88 },
-            { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 62, y: 25, battery: 84 },
-            { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, x: 68, y: 42, battery: 85 },
-            { id: 'S-004', name: 'Wentworth & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 75, y: 48, battery: 17 },
-            { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 55, battery: 79 },
-            { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 65, y: 32, battery: 67 },
-            { id: 'S-007', name: 'Wentworth & E 31st St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 78, y: 28, battery: 0, error: true },
-            { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 60, y: 48, battery: 88 },
-            { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 70, y: 35, battery: 73 },
-            { id: 'S-010', name: 'Wentworth & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 82, y: 58, battery: 81 },
-            { id: 'S-011', name: 'Michigan & E 34th St', status: 'normal', capacity: 33, flow: 25, headHeight: 1.3, x: 68, y: 52, battery: 56 },
-            { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, x: 58, y: 28, battery: 94 },
-            { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, x: 72, y: 45, battery: 89 },
-            { id: 'S-014', name: 'Wentworth & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, x: 80, y: 42, battery: 76 },
-            { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 65, y: 62, battery: 15 },
-            { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 72, y: 25, battery: 83 },
+            { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 58, y: 45, battery: 88 },
+            { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 78, y: 25, battery: 84 },
+            { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, x: 68, y: 45, battery: 85 },
+            { id: 'S-004', name: 'Indiana & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 83, y: 55, battery: 17 },
+            { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 65, battery: 79 },
+            { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 78, y: 35, battery: 67 },
+            { id: 'S-007', name: 'MLK & E 31st St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 92, y: 25, battery: 0, error: true },
+            { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 58, y: 55, battery: 88 },
+            { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 68, y: 35, battery: 73 },
+            { id: 'S-010', name: 'Indiana & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 83, y: 65, battery: 81 },
+            { id: 'S-011', name: 'Michigan & E 34th St', status: 'normal', capacity: 33, flow: 25, headHeight: 1.3, x: 78, y: 55, battery: 56 },
+            { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, x: 58, y: 25, battery: 94 },
+            { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, x: 68, y: 55, battery: 89 },
+            { id: 'S-014', name: 'MLK & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, x: 92, y: 45, battery: 76 },
+            { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 78, y: 65, battery: 15 },
+            { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 68, y: 25, battery: 83 },
         ];
-
+        
+        // *** WORK ORDER FIX: New (x, y) coordinates to place alerts BETWEEN sensors ***
         const workOrders = [
-            { id: 'WO-2401', location: 'Wentworth & E 31st St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', x: 78, y: 28 },
-            { id: 'WO-2402', location: 'Michigan & E 32nd St', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 63, y: 28 },
-            { id: 'WO-2403', location: 'Federal & E 34th St', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 71, y: 47 },
-            { id: 'WO-2404', location: 'Wentworth & E 35th St', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 80, y: 56 },
-            { id: 'WO-2405', location: 'State & E 34th St', risk: 'medium', issue: 'Reduced flow capacity', impact: 'Low', eta: '5 days', confidence: 78, x: 59, y: 50 },
+            // This one STAYS on the sensor, since it's a sensor error
+            { id: 'WO-2401', location: 'MLK & E 31st St', risk: 'critical', issue: 'Sensor error detected', impact: 'High', eta: '1 day', x: 92, y: 25 }, 
+            // These are moved to be "near" the sensors
+            { id: 'WO-2402', location: 'Near Michigan & 32nd', risk: 'critical', issue: 'Partial blockage detected', impact: 'High', eta: '2 days', confidence: 91, x: 73, y: 35 },
+            { id: 'WO-2403', location: 'Near Federal & 34th', risk: 'high', issue: 'Debris accumulation', impact: 'Medium', eta: '3 days', confidence: 89, x: 73, y: 55 },
+            { id: 'WO-2404', location: 'Near Indiana & 35th', risk: 'high', issue: 'Debris accumulation', impact: 'High', eta: '2 days', confidence: 87, x: 80.5, y: 65 },
+            { id: 'WO-2405', location: 'Near State & 34th', risk: 'medium', issue: 'Reduced flow capacity', impact: 'Low', eta: '5 days', confidence: 78, x: 63, y: 55 },
         ];
 
         // Calculate average capacity from working sensors for historical trend
@@ -133,96 +136,201 @@
             { metric: 'CSO Volume Reduction', value: '220M gal', change: '-32%', trend: 'down' },
         ];
 
-        // Simple Chart Components with proper alignment
+        // New SimpleLineChart Component
         const SimpleLineChart = ({ data }) => {
             const maxValue = Math.max(...data.map(d => d.capacity));
             const minValue = 0;
             const range = maxValue - minValue;
-            
-            const points = data.map((d, i) => {
-                const x = 20 + (i / (data.length - 1)) * 75;
-                const y = 10 + (1 - (d.capacity - minValue) / range) * 75;
-                return `${x},${y}`;
-            }).join(' ');
+
+            // Define chart padding/area
+            const padding = { top: 10, right: 5, bottom: 20, left: 12 };
+            const chartWidth = 100 - padding.left - padding.right;
+            const chartHeight = 100 - padding.top - padding.bottom;
+
+            // Function to get X position for an index
+            const getX = (i) => {
+                return padding.left + (i / (data.length - 1)) * chartWidth;
+            };
+
+            // Function to get Y position for a value
+            const getY = (value) => {
+                if (range === 0) return padding.top;
+                return padding.top + (1 - (value - minValue) / range) * chartHeight;
+            };
+
+            const points = data.map((d, i) => `${getX(i)},${getY(d.capacity)}`).join(' ');
+
+            // Create Y-axis labels (0%, 25%, 50%, 75%, 100%)
+            const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
+                const value = Math.round(maxValue * pct);
+                const y = getY(value);
+                return { value: `${value}%`, y };
+            });
 
             return (
                 <div className="relative h-64 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">System Capacity Trend</div>
+                    {/* *** CHART FIX: Removed preserveAspectRatio="none" *** */}
                     <svg className="w-full h-48" viewBox="0 0 100 100">
-                        {/* Y-axis */}
-                        <line x1="20" y1="10" x2="20" y2="85" stroke="#666" strokeWidth="0.5" />
+                        {/* Y-axis labels and grid lines */}
+                        {yAxisLabels.map((label, i) => (
+                            <g key={i}>
+                                <text x={padding.left - 2} y={label.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">
+                                    {label.value}
+                                </text>
+                                <line
+                                    x1={padding.left} y1={label.y}
+                                    x2={padding.left + chartWidth} y2={label.y}
+                                    stroke="#e5e7eb" strokeWidth="0.3"
+                                />
+                            </g>
+                        ))}
                         
-                        {/* X-axis */}
-                        <line x1="20" y1="85" x2="95" y2="85" stroke="#666" strokeWidth="0.5" />
-                        
-                        {/* Y-axis labels */}
-                        <text x="2" y="12" fontSize="3" fill="#666">{maxValue}%</text>
-                        <text x="2" y="30" fontSize="3" fill="#666">{Math.round(maxValue * 0.75)}%</text>
-                        <text x="2" y="48" fontSize="3" fill="#666">{Math.round(maxValue * 0.5)}%</text>
-                        <text x="2" y="66" fontSize="3" fill="#666">{Math.round(maxValue * 0.25)}%</text>
-                        <text x="6" y="88" fontSize="3" fill="#666">0%</text>
-                        
-                        {/* Grid lines */}
-                        <line x1="20" y1="28.75" x2="95" y2="28.75" stroke="#e5e7eb" strokeWidth="0.3" />
-                        <line x1="20" y1="47.5" x2="95" y2="47.5" stroke="#e5e7eb" strokeWidth="0.3" />
-                        <line x1="20" y1="66.25" x2="95" y2="66.25" stroke="#e5e7eb" strokeWidth="0.3" />
-                        
-                        {/* Line */}
+                        {/* X-axis labels */}
+                        {data.map((d, i) => (
+                            <text
+                                key={d.time}
+                                x={getX(i)}
+                                y={100 - padding.bottom + 7} // Position below the chart
+                                fontSize="5"
+                                fill="#666"
+                                textAnchor="middle"
+                            >
+                                {d.time}
+                            </text>
+                        ))}
+
+                        {/* X-axis line */}
+                        <line 
+                            x1={padding.left} y1={getY(0)}
+                            x2={padding.left + chartWidth} y2={getY(0)}
+                            stroke="#666" strokeWidth="0.5"
+                        />
+                        {/* Y-axis line */}
+                        <line 
+                            x1={padding.left} y1={padding.top}
+                            x2={padding.left} y2={getY(0)}
+                            stroke="#666" strokeWidth="0.5"
+                        />
+
+                        {/* Data Line */}
                         <polyline
                             points={points}
                             fill="none"
                             stroke="#ef4444"
-                            strokeWidth="2"
+                            strokeWidth="1.5"
                         />
                         
-                        {/* Points */}
-                        {data.map((d, i) => {
-                            const x = 20 + (i / (data.length - 1)) * 75;
-                            const y = 10 + (1 - (d.capacity - minValue) / range) * 75;
-                            return (
-                                <circle key={i} cx={x} cy={y} r="1.5" fill="#ef4444" />
-                            );
-                        })}
+                        {/* Data Points */}
+                        {data.map((d, i) => (
+                            <circle
+                                key={i}
+                                cx={getX(i)}
+                                cy={getY(d.capacity)}
+                                r="1.5"
+                                fill="#ef4444"
+                            />
+                        ))}
                     </svg>
-                    <div className="flex justify-between text-xs text-gray-600 mt-1 ml-12 mr-2">
-                        {data.filter((d, i) => i % 2 === 0).map((d, i) => <span key={i}>{d.time}</span>)}
-                    </div>
                 </div>
             );
         };
 
+        // New SimpleBarChart Component
         const SimpleBarChart = ({ data }) => {
             const maxValue = Math.max(...data.map(d => d.flow));
+
+            // Define chart padding/area
+            const padding = { top: 10, right: 5, bottom: 20, left: 12 };
+            const chartWidth = 100 - padding.left - padding.right;
+            const chartHeight = 100 - padding.top - padding.bottom;
+
+            // Bar calculations
+            const barWidth = (chartWidth / data.length) * 0.8; // 80% width for padding
+            const barSpacing = (chartWidth / data.length) * 0.2;
+
+            // Function to get Y position for a value
+            const getY = (value) => {
+                if (maxValue === 0) return padding.top + chartHeight;
+                return padding.top + (1 - value / maxValue) * chartHeight;
+            };
+
+            // Create Y-axis labels (0, 25%, 50%, 75%, 100%)
+            const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => {
+                const value = Math.round(maxValue * pct);
+                const y = getY(value);
+                return { value, y };
+            });
             
             return (
                 <div className="relative h-64 bg-gray-50 rounded-lg p-4">
                     <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
-                    <div className="flex h-48">
-                        {/* Y-axis labels */}
-                        <div className="flex flex-col justify-between text-xs text-gray-600 pr-2 py-2">
-                            <span>{Math.round(maxValue)}</span>
-                            <span>{Math.round(maxValue * 0.75)}</span>
-                            <span>{Math.round(maxValue * 0.5)}</span>
-                            <span>{Math.round(maxValue * 0.25)}</span>
-                            <span>0</span>
-                        </div>
+                    {/* *** CHART FIX: Removed preserveAspectRatio="none" *** */}
+                    <svg className="w-full h-48" viewBox="0 0 100 100">
+                        {/* Y-axis labels and grid lines */}
+                        {yAxisLabels.map((label, i) => (
+                            <g key={i}>
+                                <text x={padding.left - 2} y={label.y} fontSize="5" fill="#666" textAnchor="end" dominantBaseline="middle">
+                                    {label.value}
+                                </text>
+                                <line
+                                    x1={padding.left} y1={label.y}
+                                    x2={padding.left + chartWidth} y2={label.y}
+                                    stroke="#e5e7eb" strokeWidth="0.3"
+                                />
+                            </g>
+                        ))}
                         
+                        {/* X-axis labels */}
+                        {data.map((d, i) => {
+                            const x = padding.left + i * (barWidth + barSpacing) + (barWidth / 2) + (barSpacing / 2);
+                            return (
+                                <text
+                                    key={d.time}
+                                    x={x}
+                                    y={100 - padding.bottom + 7} // Position below the chart
+                                    fontSize="5"
+                                    fill="#666"
+                                    textAnchor="middle"
+                                >
+                                    {d.time}
+                                </text>
+                            );
+                        })}
+                        
+                        {/* X-axis line */}
+                        <line 
+                            x1={padding.left} y1={getY(0)}
+                            x2={padding.left + chartWidth} y2={getY(0)}
+                            stroke="#666" strokeWidth="0.5"
+                        />
+                        {/* Y-axis line */}
+                        <line 
+                            x1={padding.left} y1={padding.top}
+                            x2={padding.left} y2={getY(0)}
+                            stroke="#666" strokeWidth="0.5"
+                        />
+
                         {/* Bars */}
-                        <div className="flex-1 flex items-end justify-around gap-1 border-b-2 border-l-2 border-gray-600">
-                            {data.map((d, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full pb-1">
-                                    <div 
-                                        className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
-                                        style={{ height: `${(d.flow / maxValue) * 95}%` }}
-                                        title={`${d.time}: ${d.flow} L/s`}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-600 mt-1 ml-8">
-                        {data.filter((d, i) => i % 2 === 0).map((d, i) => <span key={i}>{d.time}</span>)}
-                    </div>
+                        {data.map((d, i) => {
+                            const x = padding.left + i * (barWidth + barSpacing) + (barSpacing / 2);
+                            const y = getY(d.flow);
+                            const height = getY(0) - y;
+
+                            return (
+                                <rect
+                                    key={d.time}
+                                    x={x}
+                                    y={y}
+                                    width={barWidth}
+                                    height={height}
+                                    className="fill-blue-500 transition-all hover:fill-blue-600"
+                                >
+                                    <title>{`${d.time}: ${d.flow} L/s`}</title>
+                                </rect>
+                            );
+                        })}
+                    </svg>
                 </div>
             );
         };
@@ -332,7 +440,8 @@
         // Header Component with brand colors
         const DashboardHeader = ({ user, onLogout }) => {
             return (
-                <header className="text-white shadow-lg" style={{backgroundColor: BRAND_COLORS.primary}}>
+                // Header color fix from before
+                <header className="text-white shadow-lg bg-sky-600">
                     <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -418,8 +527,11 @@
                             {/* Network Map - Fit to aspect ratio */}
                             <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
                                 <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
-                                <div className="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center" style={{height: '500px'}}>
-                                    <img src="./IIT-3rdWard.jpg" alt="Network Map" className="max-w-full max-h-full object-contain" />
+                                
+                                {/* Map aspect ratio fix from before */}
+                                <div className="relative bg-gray-100 rounded-lg overflow-hidden">
+                                    
+                                    <img src="./IIT-3rdWard.jpg" alt="Network Map" className="w-full h-auto" />
                                     
                                     {/* Smaller Static Sensors */}
                                     {sensorData.map((sensor) => (
@@ -625,7 +737,7 @@
                         <div className="bg-white rounded-lg shadow-lg p-12 text-center">
                             <Activity className="w-24 h-24 mx-auto mb-6" style={{color: BRAND_COLORS.primary}} />
                             <h2 className="text-3xl font-bold text-gray-800 mb-4">Wabash Sensor Pair</h2>
-                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</p>
+                            <p className="text-xl text-gray-600 mb-8">Live sensor monitoring coming soon</a:p>
                             <div className="max-w-2xl mx-auto text-left rounded-lg p-6" style={{backgroundColor: BRAND_COLORS.light}}>
                                 <h3 className="font-bold text-lg mb-3" style={{color: BRAND_COLORS.dark}}>Planned Features:</h3>
                                 <ul className="space-y-2 text-gray-700">
