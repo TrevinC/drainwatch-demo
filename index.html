@@ -79,7 +79,7 @@
     };
 
     // -----------------------
-    // Demo data for Grainger
+    // Demo data
     // -----------------------
     const sensorData = [
       { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 58, y: 45, battery: 88 },
@@ -88,7 +88,7 @@
       { id: 'S-004', name: 'Indiana & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 83, y: 55, battery: 17 },
       { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 65, battery: 79 },
       { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 78, y: 35, battery: 67 },
-      { id: 'S-007', name: 'MLK & E 31st St', status: 'critical', capacity: null, flow: null, headHeight: null, x: 92, y: 25, battery: 0, error: true },
+      { id: 'S-007', name: 'MLK & E 31st St', status: 'normal', capacity: 41, flow: 24, headHeight: 1.7, x: 92, y: 25, battery: 72 },
       { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 58, y: 55, battery: 88 },
       { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 68, y: 35, battery: 73 },
       { id: 'S-010', name: 'Indiana & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 83, y: 65, battery: 81 },
@@ -101,7 +101,6 @@
     ];
 
     const workOrders = [
-      { id: 'WO-2401', location: 'MLK & E 31st St',       risk: 'critical', issue: 'Sensor error detected',   impact: 'High',   eta: '1 day',  x: 92, y: 25 },
       { id: 'WO-2402', location: 'Near Michigan & 32nd',  risk: 'critical', issue: 'Partial blockage',        impact: 'High',   eta: '2 days', confidence: 91, x: 78, y: 30 },
       { id: 'WO-2403', location: 'Near Federal & 34th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'Medium', eta: '3 days', confidence: 89, x: 68, y: 50 },
       { id: 'WO-2404', location: 'Near Indiana & 35th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'High',   eta: '2 days', confidence: 87, x: 83, y: 60 },
@@ -126,7 +125,7 @@
       { metric: 'CSO Volume Reduction',value: '220M gal', change: '-32%', trend: 'down' },
     ];
 
-    // -------- Simple SVG charts for Grainger cards --------
+    // -------- Simple SVG charts --------
     const SimpleLineChart = ({ data }) => {
       const maxValue = 100, minValue = 0;
       const padding = { top: 10, right: 5, bottom: 20, left: 12 };
@@ -266,19 +265,25 @@
     // -----------------------
     // Header
     // -----------------------
+// -----------------------
+    // Header
+    // -----------------------
     const DashboardHeader = ({ user, onLogout }) => (
       <header className="text-white shadow-lg bg-sky-600">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-8"
-                   onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }} />
-              <svg style={{display:'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-              </svg>
-              <div>
+            <div className="flex items-center space-x-6">
+              {/* New CRIO Systems Horizontal Logo */}
+              <img src="./CRIO_Lockup Horizontal_Light.jpg" alt="CRIO Systems Logo" className="h-10" 
+                   onError={(e) => e.currentTarget.style.display='none'} />
+              
+              <div className="flex items-center space-x-3 border-l border-white/30 pl-6">
+                <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-8"
+                     onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }} />
+                <svg style={{display:'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                </svg>
                 <h1 className="text-2xl font-bold">DrainWatch</h1>
-                <p className="text-sm" style={{color: BRAND_COLORS.light}}>Climate-Resilient Infrastructure Operations</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -296,7 +301,7 @@
     );
 
     // -----------------------
-    // Grainger dashboard
+    // Dashboard
     // -----------------------
     const GraingerDashboard = ({ user, onLogout }) => {
       const [selectedSensor, setSelectedSensor] = useState(null);
@@ -371,8 +376,8 @@
 
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-bold mb-4 flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" /> Priority Work Orders
-                </h2>
+                  <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" /> Risk Ranked Work Recommendations
+                </h2
                 <div className="space-y-3">
                   {workOrders.map((order) => (
                     <div key={order.id} className={`border-2 rounded-lg p-3 ${getRiskColor(order.risk)}`}>
@@ -511,13 +516,6 @@
 
       const refreshAllData = async () => {
         try {
-          // API key validation removed - it was blocking valid keys
-          /*
-          if (!FLUME_CONFIG.API_KEY || FLUME_CONFIG.API_KEY === 'AIzaSyADx1e3gb7VAZ8Ju1yUGpZgLNxR4mWLeJo') {
-            const msg = "API_KEY is not set. Add it in FLUME_CONFIG.";
-            setError(msg); setStatus(`Error: ${msg}`); return;
-          }
-          */
           setError(null);
           setStatus("Fetching data...");
 
@@ -603,7 +601,6 @@
           const baselineY = ys(yMin);
           return segs.map((seg, j) => {
             if (seg.length < 2) return null;
-            // Create polygon: line points + baseline points in reverse
             const points = [
               ...seg,
               [seg[seg.length - 1][0], baselineY],
@@ -636,15 +633,10 @@
             
             {series.map(({key,color,label})=>(
               <g key={key}>
-                {/* Filled area */}
                 {buildFilledAreas(key, color)}
-                
-                {/* Line on top of fill */}
                 {buildSegments(key).map((seg,j)=>
                   <polyline key={j} points={seg.map(([x,y])=>`${x},${y}`).join(' ')} fill="none" stroke={color} strokeWidth="2" />
                 )}
-                
-                {/* Dots on top */}
                 {data.map((d,i)=> d[key]==null?null:<circle key={i} cx={xs(i)} cy={ys(d[key])} r="2.5" fill={color}><title>{`${label} @ ${d.name}: ${d[key].toFixed(1)} cm`}</title></circle>)}
               </g>
             ))}
@@ -671,7 +663,6 @@
         const yTicks = 5, yVals = Array.from({length:yTicks+1},(_,i)=>yMin + i*(yMax-yMin)/yTicks);
         const xTicks = 6, xVals = Array.from({length:xTicks+1},(_,i)=>Math.round(i*xMax/xTicks));
         
-        // Create filled area polygon
         const baselineY = ys(yMin);
         const fillPoints = profile.length >= 2 ? [
           ...profile.map(p => [xs(p.x), ys(p.z)]),
@@ -692,7 +683,6 @@
               <text key={i} x={xs(xv)} y={pad.top+innerH+16} fontSize="10" fill="#555" textAnchor="middle">{xv}</text>
             )}
             
-            {/* Filled area */}
             {fillPoints.length > 0 && (
               <polygon 
                 points={fillPoints.map(([x,y]) => `${x},${y}`).join(' ')} 
@@ -701,10 +691,8 @@
               />
             )}
             
-            {/* Line on top */}
             {profile.length>=2 && <polyline points={profile.map(p=>`${xs(p.x)},${ys(p.z)}`).join(' ')} fill="none" stroke="#3b82f6" strokeWidth="2" />}
             
-            {/* Sensor dots */}
             {points.map((p,i)=><circle key={i} cx={xs(p.x)} cy={ys(p.z)} r="4" fill="#ef4444"><title>{`Sensor @ ${Math.round(p.x)} cm: ${p.z.toFixed(1)} cm`}</title></circle>)}
             
             <text x="10" y={H/2} fontSize="12" fill="#333" transform={`rotate(-90 10 ${H/2})`} textAnchor="middle">Water Height (cm)</text>
@@ -727,7 +715,6 @@
                 {status}
               </div>
               
-              {/* Two plots side by side */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div>
                   <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Site 1 Water Level</h3>
@@ -754,7 +741,6 @@
                 </div>
               </div>
               
-              {/* Full width spatial plot below */}
               <div>
                 <h3 className="text-xl font-semibold mb-4" style={{ color: BRAND_COLORS.dark }}>Spatial Profile</h3>
                 <SpatialProfileChart
