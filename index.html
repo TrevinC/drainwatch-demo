@@ -373,13 +373,15 @@
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
+                <img src="./CRIO_Lockup Horizontal.png" alt="CRIO Systems Logo" style={{ height: '4.4rem' }} />
+              </div>
+              <div className="flex items-center justify-center mb-4">
                 <img src="./DrainWatch Logo 04.2026.png" alt="DrainWatch Logo" className="h-16"
                      onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
                 <svg style={{display:'none'}} className="w-16 h-16" fill="none" stroke={BRAND_COLORS.primary} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                 </svg>
               </div>
-              <p className="text-gray-600 mt-2">Climate-Resilient Infrastructure Operations</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -427,12 +429,12 @@
       <header className="text-white shadow-lg bg-sky-600">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
+            <div className="flex flex-col items-center sm:flex-row sm:items-center sm:space-x-6">
               {/* New CRIO Systems Horizontal Logo */}
-              <img src="./CRIO_Lockup Horizontal_Light.png" alt="CRIO Systems Logo" className="h-10" 
+              <img src="./CRIO_Lockup Horizontal_Light.png" alt="CRIO Systems Logo" className="h-10"
                    onError={(e) => e.currentTarget.style.display='none'} />
-              
-              <div className="flex items-center space-x-3 border-l border-white/30 pl-6">
+
+              <div className="flex items-center space-x-3 border-t border-white/30 pt-2 mt-2 sm:border-t-0 sm:pt-0 sm:mt-0 sm:border-l sm:pl-6">
                 <img src="./DrainWatch Logo 04.2026.png" alt="DrainWatch Logo" className="h-8"
                      onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }} />
                 <svg style={{display:'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
