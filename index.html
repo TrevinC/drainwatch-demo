@@ -17,6 +17,10 @@
   <!-- Tailwind CDN (fine for demo) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Leaflet for interactive OpenStreetMap -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <link rel="icon" href="./DrainWatch Logo 04.2026.png" type="image/png" />
 
   <style>
@@ -28,7 +32,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
     // Brand colors
     const BRAND_COLORS = {
@@ -81,41 +85,50 @@
     // Demo data
     // -----------------------
     const sensorData = [
-      { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, x: 58, y: 45, battery: 88 },
-      { id: 'S-002', name: 'Michigan & E 31st St', status: 'warning', capacity: 78, flow: 28, headHeight: 3.2, x: 78, y: 25, battery: 84 },
-      { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, x: 68, y: 45, battery: 85 },
-      { id: 'S-004', name: 'Indiana & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, x: 83, y: 55, battery: 17 },
-      { id: 'S-005', name: 'State & E 35th St', status: 'warning', capacity: 71, flow: 35, headHeight: 2.9, x: 58, y: 65, battery: 79 },
-      { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, x: 78, y: 35, battery: 67 },
-      { id: 'S-007', name: 'MLK & E 31st St', status: 'normal', capacity: 41, flow: 24, headHeight: 1.7, x: 92, y: 25, battery: 72 },
-      { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, x: 58, y: 55, battery: 88 },
-      { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, x: 68, y: 35, battery: 73 },
-      { id: 'S-010', name: 'Indiana & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, x: 83, y: 65, battery: 81 },
-      { id: 'S-011', name: 'Michigan & E 34th St', status: 'normal', capacity: 33, flow: 25, headHeight: 1.3, x: 78, y: 55, battery: 56 },
-      { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, x: 58, y: 25, battery: 94 },
-      { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, x: 68, y: 55, battery: 89 },
-      { id: 'S-014', name: 'MLK & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, x: 92, y: 45, battery: 76 },
-      { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, x: 78, y: 65, battery: 15 },
-      { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, x: 68, y: 25, battery: 83 },
+      { id: 'S-001', name: 'State & E 33rd St', status: 'normal', capacity: 52, flow: 27, headHeight: 2.1, lat: 41.8347, lng: -87.6270, battery: 88 },
+      { id: 'S-002', name: 'Michigan & E 31st St', status: 'normal', capacity: 78, flow: 28, headHeight: 3.2, lat: 41.8384, lng: -87.6237, battery: 84 },
+      { id: 'S-003', name: 'Federal & E 33rd St', status: 'normal', capacity: 45, flow: 22, headHeight: 1.8, lat: 41.8347, lng: -87.6293, battery: 85 },
+      { id: 'S-004', name: 'Indiana & E 34th St', status: 'normal', capacity: 38, flow: 23, headHeight: 1.5, lat: 41.8329, lng: -87.6215, battery: 17 },
+      { id: 'S-005', name: 'State & E 35th St', status: 'normal', capacity: 71, flow: 35, headHeight: 2.9, lat: 41.8311, lng: -87.6270, battery: 79 },
+      { id: 'S-006', name: 'Michigan & E 32nd St', status: 'normal', capacity: 28, flow: 21, headHeight: 1.1, lat: 41.8366, lng: -87.6237, battery: 67 },
+      { id: 'S-007', name: 'MLK & E 31st St', status: 'normal', capacity: 41, flow: 24, headHeight: 1.7, lat: 41.8384, lng: -87.6167, battery: 72 },
+      { id: 'S-008', name: 'State & E 34th St', status: 'normal', capacity: 42, flow: 26, headHeight: 1.7, lat: 41.8329, lng: -87.6270, battery: 88 },
+      { id: 'S-009', name: 'Federal & E 32nd St', status: 'normal', capacity: 35, flow: 23, headHeight: 1.4, lat: 41.8366, lng: -87.6293, battery: 73 },
+      { id: 'S-010', name: 'Indiana & E 35th St', status: 'normal', capacity: 29, flow: 20, headHeight: 1.2, lat: 41.8311, lng: -87.6215, battery: 81 },
+      { id: 'S-011', name: 'Michigan & E 34th St', status: 'normal', capacity: 33, flow: 25, headHeight: 1.3, lat: 41.8329, lng: -87.6237, battery: 56 },
+      { id: 'S-012', name: 'State & E 31st St', status: 'normal', capacity: 40, flow: 27, headHeight: 1.6, lat: 41.8384, lng: -87.6270, battery: 94 },
+      { id: 'S-013', name: 'Federal & E 34th St', status: 'normal', capacity: 36, flow: 22, headHeight: 1.5, lat: 41.8329, lng: -87.6293, battery: 89 },
+      { id: 'S-014', name: 'MLK & E 33rd St', status: 'normal', capacity: 31, flow: 19, headHeight: 1.2, lat: 41.8347, lng: -87.6167, battery: 76 },
+      { id: 'S-015', name: 'Michigan & E 35th St', status: 'normal', capacity: 44, flow: 29, headHeight: 1.8, lat: 41.8311, lng: -87.6237, battery: 15 },
+      { id: 'S-016', name: 'Federal & E 31st St', status: 'normal', capacity: 37, flow: 21, headHeight: 1.5, lat: 41.8384, lng: -87.6293, battery: 83 },
     ];
 
     const workOrders = [
-      { id: 'WO-2402', location: 'Near Michigan & 32nd',  risk: 'critical', issue: 'Partial blockage',        impact: 'High',   eta: '2 days', confidence: 91, x: 78, y: 30 },
-      { id: 'WO-2403', location: 'Near Federal & 34th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'Medium', eta: '3 days', confidence: 89, x: 68, y: 50 },
-      { id: 'WO-2404', location: 'Near Indiana & 35th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'High',   eta: '2 days', confidence: 87, x: 83, y: 60 },
-      { id: 'WO-2405', location: 'Near State & 34th',     risk: 'medium',   issue: 'Reduced flow capacity',   impact: 'Low',    eta: '5 days', confidence: 78, x: 58, y: 50 },
+      { id: 'WO-2402', location: 'Near Michigan & 32nd',  risk: 'critical', issue: 'Partial blockage',        impact: 'High',   eta: '2 days', confidence: 91, lat: 41.8370, lng: -87.6232 },
+      { id: 'WO-2403', location: 'Near Federal & 34th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'Medium', eta: '3 days', confidence: 89, lat: 41.8333, lng: -87.6288 },
+      { id: 'WO-2404', location: 'Near Indiana & 35th',   risk: 'high',     issue: 'Debris accumulation',     impact: 'High',   eta: '2 days', confidence: 87, lat: 41.8315, lng: -87.6210 },
+      { id: 'WO-2405', location: 'Near State & 34th',     risk: 'medium',   issue: 'Reduced flow capacity',   impact: 'Low',    eta: '5 days', confidence: 78, lat: 41.8333, lng: -87.6265 },
+    ];
+
+    // Deployment boundary (Bronzeville pilot area: Federal to MLK, 31st to 35th)
+    const deploymentBoundary = [
+      [41.8392, -87.6302],
+      [41.8392, -87.6158],
+      [41.8303, -87.6158],
+      [41.8303, -87.6302],
     ];
 
     const workingSensors = sensorData.filter(s => !s.error);
     const avgCapacity = Math.round(workingSensors.reduce((sum, s) => sum + s.capacity, 0) / workingSensors.length);
+    // Rainfall leads capacity: rain peaked midday, system fill lags behind
     const historicalData = [
-      { time: '00:00', capacity: Math.round(avgCapacity * 0.38), flow: 22 },
-      { time: '04:00', capacity: Math.round(avgCapacity * 0.46), flow: 26 },
-      { time: '08:00', capacity: Math.round(avgCapacity * 0.63), flow: 32 },
-      { time: '12:00', capacity: Math.round(avgCapacity * 0.74), flow: 37 },
-      { time: '16:00', capacity: Math.round(avgCapacity * 0.86), flow: 39 },
-      { time: '20:00', capacity: Math.round(avgCapacity * 0.93), flow: 38 },
-      { time: 'Now',   capacity: Math.round(avgCapacity),         flow: 40 },
+      { time: '00:00', capacity: Math.round(avgCapacity * 0.38), rain: 0.2 },
+      { time: '04:00', capacity: Math.round(avgCapacity * 0.46), rain: 1.8 },
+      { time: '08:00', capacity: Math.round(avgCapacity * 0.63), rain: 4.6 },
+      { time: '12:00', capacity: Math.round(avgCapacity * 0.74), rain: 7.2 },
+      { time: '16:00', capacity: Math.round(avgCapacity * 0.86), rain: 5.4 },
+      { time: '20:00', capacity: Math.round(avgCapacity * 0.93), rain: 3.1 },
+      { time: 'Now',   capacity: Math.round(avgCapacity),         rain: 1.6 },
     ];
     // -------- Simple SVG charts --------
     const SimpleLineChart = ({ data }) => {
@@ -149,18 +162,18 @@
       );
     };
 
-    const SimpleBarChart = ({ data }) => {
-      const maxValue = Math.max(...data.map(d => d.flow));
+    const RainfallChart = ({ data }) => {
+      const maxValue = Math.max(...data.map(d => d.rain)) * 1.1;
       const padding = { top: 10, right: 5, bottom: 20, left: 12 };
       const chartWidth = 100 - padding.left - padding.right;
       const chartHeight = 100 - padding.top - padding.bottom;
       const barWidth = (chartWidth / data.length) * 0.8;
       const barSpacing = (chartWidth / data.length) * 0.2;
       const getY = (v) => padding.top + (1 - v / maxValue) * chartHeight;
-      const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(p => ({ value: Math.round(maxValue * p), y: getY(maxValue * p) }));
+      const yAxisLabels = [0, 0.25, 0.5, 0.75, 1].map(p => ({ value: Math.round(maxValue * p * 10) / 10, y: getY(maxValue * p) }));
       return (
         <div className="relative h-72 bg-gray-50 rounded-lg p-4">
-          <div className="text-sm font-semibold mb-2">Flow Rate Analysis (L/s)</div>
+          <div className="text-sm font-semibold mb-2">Rainfall Intensity (mm/hr) — Last 24 Hours</div>
           <svg className="w-full h-64" viewBox="0 0 100 100">
             {yAxisLabels.map((l, i) => (
               <g key={i}>
@@ -177,13 +190,165 @@
             <line x1={padding.left} y1={padding.top} x2={padding.left} y2={getY(0)} stroke="#666" strokeWidth="0.5" />
             {data.map((d, i) => {
               const x = padding.left + i * (barWidth + barSpacing) + (barSpacing / 2);
-              const y = getY(d.flow);
+              const y = getY(d.rain);
               const h = getY(0) - y;
               return <rect key={d.time} x={x} y={y} width={barWidth} height={h} className="fill-blue-500 transition-all hover:fill-blue-600">
-                <title>{`${d.time}: ${d.flow} L/s`}</title>
+                <title>{`${d.time}: ${d.rain} mm/hr`}</title>
               </rect>;
             })}
           </svg>
+        </div>
+      );
+    };
+
+    // -----------------------
+    // Interactive OpenStreetMap (Leaflet)
+    // -----------------------
+    const DeploymentMap = ({ sensors, orders, onSelectSensor, onMapReady }) => {
+      const containerRef = useRef(null);
+      const mapRef = useRef(null);
+      useEffect(() => {
+        if (mapRef.current) return;
+        const map = L.map(containerRef.current);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 20,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        }).addTo(map);
+
+        const boundary = L.polygon(deploymentBoundary, {
+          color: BRAND_COLORS.primary, weight: 2.5, dashArray: '8 6',
+          fillColor: BRAND_COLORS.primary, fillOpacity: 0.06,
+        }).addTo(map).bindTooltip('DrainWatch Deployment Area', { sticky: true });
+
+        const fitToDeployment = () => map.fitBounds(boundary.getBounds(), { padding: [30, 30] });
+        fitToDeployment();
+        // Container size isn't final at mount (dashboard renders right after login),
+        // so re-measure and re-center once layout settles
+        setTimeout(() => { map.invalidateSize(); fitToDeployment(); }, 150);
+
+        sensors.forEach((s) => {
+          const color = s.status === 'critical' ? '#ef4444' : s.status === 'warning' ? '#eab308' : '#22c55e';
+          L.circleMarker([s.lat, s.lng], { radius: 7, color: '#ffffff', weight: 2.5, fillColor: color, fillOpacity: 1 })
+            .addTo(map)
+            .bindTooltip(`${s.id} — ${s.name}`)
+            .on('click', () => {
+              // Nudge the map so the anchored popup has room to render above the dot
+              map.panInside([s.lat, s.lng], { paddingTopLeft: [200, 240], paddingBottomRight: [200, 60] });
+              onSelectSensor(s);
+            });
+        });
+
+        orders.forEach((o) => {
+          const color = o.risk === 'critical' ? '#ef4444' : o.risk === 'high' ? '#f97316' : '#eab308';
+          const icon = L.divIcon({
+            className: '',
+            html: `<svg class="animate-blink" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          });
+          L.marker([o.lat, o.lng], { icon }).addTo(map).bindTooltip(`${o.id} — ${o.issue}`);
+        });
+
+        mapRef.current = map;
+        if (onMapReady) onMapReady(map);
+        return () => { map.remove(); mapRef.current = null; };
+      }, []);
+      return <div ref={containerRef} className="w-full z-0" style={{ height: '100%', minHeight: '32rem' }} />;
+    };
+
+    // Deterministic per-sensor snapshot values (demo data derived from sensor id)
+    const getSensorSnapshot = (sensor) => {
+      const n = parseInt(sensor.id.slice(2), 10);
+      return {
+        lastMeasurement: `${(n % 4) + 1} min ago`,
+        sensorTemp: (11 + (n % 5) * 0.7).toFixed(1),
+        signal: ['Excellent', 'Good', 'Good', 'Fair'][n % 4],
+        interval: '5 min',
+        firmware: 'v2.4.1',
+        lastMaintenance: 'Jun 12, 2026',
+      };
+    };
+
+    // Deterministic hourly 7-day history per sensor: a daily cycle, two weather
+    // fronts passing through the week, and per-sensor variation
+    const getWeeklyTrend = (sensor) => {
+      const n = parseInt(sensor.id.slice(2), 10);
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const points = [];
+      for (let h = 0; h < 168; h++) {
+        const day = Math.floor(h / 24);
+        const hour = h % 24;
+        const diurnal = 0.12 * Math.sin(((hour - 6) / 24) * 2 * Math.PI);
+        const weather = 0.18 * Math.sin(((h + n * 13) / 168) * 4 * Math.PI);
+        const noise = 0.03 * Math.sin(h * 0.45 + n * 5.1) + 0.02 * Math.sin(h * 0.19 + n * 2.3);
+        const f = 1 + diurnal + weather + noise;
+        points.push({
+          label: `${dayNames[day]} ${String(hour).padStart(2, '0')}:00`,
+          day: hour === 0 ? dayNames[day] : null,
+          headHeight: +(sensor.headHeight * f).toFixed(2),
+          flow: +(sensor.flow * f).toFixed(1),
+          capacity: Math.min(100, Math.round(sensor.capacity * f)),
+          sensorTemp: +(11 + (n % 5) * 0.7 + (f - 1) * 5 + 2.2 * Math.sin(((hour - 14) / 24) * 2 * Math.PI)).toFixed(1),
+        });
+      }
+      return points;
+    };
+
+    const WeeklyTrendChart = ({ data, dataKey, label, unit }) => {
+      const W = 600, H = 170;
+      const padding = { top: 14, right: 14, bottom: 30, left: 44 };
+      const chartWidth = W - padding.left - padding.right;
+      const chartHeight = H - padding.top - padding.bottom;
+      const maxValue = Math.max(...data.map(d => d[dataKey])) * 1.15;
+      const getX = (i) => padding.left + (i / (data.length - 1)) * chartWidth;
+      const getY = (v) => padding.top + (1 - v / maxValue) * chartHeight;
+      const points = data.map((d, i) => `${getX(i)},${getY(d[dataKey])}`).join(' ');
+      const yTicks = [0, 0.5, 1].map(p => ({ value: Math.round(maxValue * p * 10) / 10, y: getY(maxValue * p) }));
+      const step = chartWidth / (data.length - 1);
+      return (
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="text-sm font-semibold mb-2">{label} <span className="font-normal text-gray-500">({unit})</span></div>
+          <svg className="w-full h-auto" viewBox={`0 0 ${W} ${H}`}>
+            {yTicks.map((t, i) => (
+              <g key={i}>
+                <text x={padding.left - 8} y={t.y} fontSize="12" fill="#6b7280" textAnchor="end" dominantBaseline="middle">{t.value}</text>
+                <line x1={padding.left} y1={t.y} x2={padding.left + chartWidth} y2={t.y} stroke="#e5e7eb" strokeWidth="1" />
+              </g>
+            ))}
+            {data.map((d, i) => d.day && (
+              <g key={`d${i}`}>
+                <line x1={getX(i)} y1={padding.top} x2={getX(i)} y2={H - padding.bottom} stroke="#e5e7eb" strokeWidth="1" />
+                <text x={getX(i) + 4} y={H - padding.bottom + 20} fontSize="12" fill="#6b7280" textAnchor="start">{d.day}</text>
+              </g>
+            ))}
+            <polyline points={points} fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            {data.map((d, i) => (
+              <rect key={`h${i}`} x={getX(i) - step / 2} y={padding.top} width={step} height={chartHeight} fill="transparent">
+                <title>{`${d.label}: ${d[dataKey]} ${unit}`}</title>
+              </rect>
+            ))}
+          </svg>
+        </div>
+      );
+    };
+
+    // Popup card anchored above a sensor marker; follows the map as it pans/zooms
+    const SensorPopup = ({ map, sensor, children }) => {
+      const [pos, setPos] = useState(null);
+      useEffect(() => {
+        const update = () => setPos(map.latLngToContainerPoint([sensor.lat, sensor.lng]));
+        update();
+        map.on('move zoom', update);
+        return () => map.off('move zoom', update);
+      }, [map, sensor]);
+      if (!pos) return null;
+      return (
+        <div className="absolute" style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 16px))', zIndex: 1100, width: '21rem' }}>
+          <div className="bg-white rounded-lg shadow-xl p-4 border-2" style={{ borderColor: BRAND_COLORS.primary }}>
+            {children}
+          </div>
+          <div className="absolute left-1/2 w-3 h-3 bg-white border-b-2 border-r-2"
+               style={{ bottom: '-7px', borderColor: BRAND_COLORS.primary, transform: 'translateX(-50%) rotate(45deg)' }} />
         </div>
       );
     };
@@ -294,121 +459,199 @@
     // -----------------------
     const GraingerDashboard = ({ user, onLogout }) => {
       const [selectedSensor, setSelectedSensor] = useState(null);
-      const getStatusColor = (status) => status === 'critical' ? 'bg-red-500' : status === 'warning' ? 'bg-yellow-500' : 'bg-green-500';
+      const [showSensorDetails, setShowSensorDetails] = useState(false);
+      const [showWeeklyTrend, setShowWeeklyTrend] = useState(false);
+      const [showNetworkHealth, setShowNetworkHealth] = useState(false);
+      const [leafletMap, setLeafletMap] = useState(null);
+      const closeDetails = () => { setShowSensorDetails(false); setShowWeeklyTrend(false); };
       const getRiskColor = (risk) =>
         risk === 'critical' ? 'bg-red-100 text-red-800 border-red-300' :
         risk === 'high'     ? 'bg-orange-100 text-orange-800 border-orange-300' :
         risk === 'medium'   ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
                               'bg-blue-100 text-blue-800 border-blue-300';
+      const getRiskLabel = (risk) => risk === 'critical' ? 'Critical' : risk === 'high' ? 'High Priority' : 'Warning';
+      const snapshot = selectedSensor ? getSensorSnapshot(selectedSensor) : null;
+      const weekly = selectedSensor ? getWeeklyTrend(selectedSensor) : null;
 
       return (
         <div className="min-h-screen bg-gray-50">
           <DashboardHeader user={user} onLogout={onLogout} />
           <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
-                <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-                  <img src="./IIT-3rdWard.jpg" alt="Network Map" className="w-full h-auto" />
-                  {sensorData.map((sensor) => (
-                    <div key={sensor.id} onClick={()=>setSelectedSensor(sensor)}
-                         className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 z-10"
-                         style={{ left: `${sensor.x}%`, top: `${sensor.y}%` }}>
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(sensor.status)} ring-3 ring-white shadow-lg`} />
-                    </div>
-                  ))}
-                  {workOrders.map((order) => (
-                    <div key={order.id} className="absolute transform -translate-x-1/2 -translate-y-1/2 z-5 animate-blink"
-                         style={{ left: `${order.x}%`, top: `${order.y}%` }}>
-                      <AlertTriangle className={`w-6 h-6 ${order.risk === 'critical' ? 'text-red-500' : order.risk === 'high' ? 'text-orange-500' : 'text-yellow-500'}`} />
-                    </div>
-                  ))}
-                  {selectedSensor && (
-                    <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-xl p-4 border-2 z-20" style={{borderColor: BRAND_COLORS.primary}}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-bold">{selectedSensor.name}</h3>
-                          <p className="text-sm text-gray-600">{selectedSensor.id}</p>
-                        </div>
-                        <button onClick={()=>setSelectedSensor(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-                      </div>
-                      <div className="grid grid-cols-4 gap-4 mt-3">
-                        <div><p className="text-xs text-gray-600">Capacity</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.capacity}%`}</p></div>
-                        <div><p className="text-xs text-gray-600">Flow Rate</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.flow} L/s`}</p></div>
-                        <div><p className="text-xs text-gray-600">Head Height</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.headHeight} ft`}</p></div>
-                        <div><p className="text-xs text-gray-600">Battery</p><p className="text-lg font-bold">{selectedSensor.error ? 'ERROR' : `${selectedSensor.battery}%`}</p></div>
-                      </div>
-                    </div>
-                  )}
+            {showSensorDetails && (
+              <div className="fixed inset-0 bg-black/30" style={{zIndex: 1200}} onClick={closeDetails} />
+            )}
+            <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden relative">
+                <DeploymentMap sensors={sensorData} orders={workOrders} onMapReady={setLeafletMap}
+                               onSelectSensor={(s)=>{ setSelectedSensor(s); closeDetails(); }} />
+                <div className="absolute top-4 left-16 bg-white/95 rounded-lg shadow-md px-4 py-2" style={{zIndex: 1100}}>
+                  <h2 className="text-xl font-bold">Illinois Tech Pilot Deployment</h2>
                 </div>
-                <div className="flex items-center justify-center space-x-6 mt-4">
-                  <div className="flex items-center space-x-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-gray-600">Normal</span></div>
-                  <div className="flex items-center space-x-2"><div className="w-3 h-3 rounded-full bg-yellow-500" /><span className="text-sm text-gray-600">Warning</span></div>
-                  <div className="flex items-center space-x-2"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-sm text-gray-600">Critical</span></div>
+                <div className="absolute top-4 right-4 bg-white/95 rounded-lg shadow-md px-4 py-2 flex items-center space-x-4" style={{zIndex: 1100}}>
+                  <div className="flex items-center space-x-1.5"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-gray-600">Sensor</span></div>
+                  <div className="flex items-center space-x-1"><AlertTriangle className="w-4 h-4 text-red-500" /><span className="text-sm text-gray-600">Critical</span></div>
+                  <div className="flex items-center space-x-1"><AlertTriangle className="w-4 h-4 text-orange-500" /><span className="text-sm text-gray-600">High Priority</span></div>
+                  <div className="flex items-center space-x-1"><AlertTriangle className="w-4 h-4 text-yellow-500" /><span className="text-sm text-gray-600">Warning</span></div>
                 </div>
+                {selectedSensor && leafletMap && (
+                  <SensorPopup map={leafletMap} sensor={selectedSensor}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-bold">{selectedSensor.name}</h3>
+                        <p className="text-sm text-gray-600">{selectedSensor.id}</p>
+                      </div>
+                      <button onClick={()=>{ setSelectedSensor(null); closeDetails(); }} className="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <div><p className="text-xs text-gray-600">Capacity</p><p className="text-lg font-bold">{selectedSensor.error ? '--' : `${selectedSensor.capacity}%`}</p></div>
+                      <div><p className="text-xs text-gray-600">Battery</p><p className="text-lg font-bold">{selectedSensor.error ? 'ERROR' : `${selectedSensor.battery}%`}</p></div>
+                      <button onClick={()=>setShowSensorDetails(true)}
+                              className="text-sm font-semibold text-white px-4 py-2 rounded-lg transition duration-200"
+                              style={{backgroundColor: BRAND_COLORS.primary}}
+                              onMouseOver={(e)=>e.currentTarget.style.backgroundColor = BRAND_COLORS.dark}
+                              onMouseOut={(e)=>e.currentTarget.style.backgroundColor = BRAND_COLORS.primary}>
+                        Show Details
+                      </button>
+                    </div>
+                  </SensorPopup>
+                )}
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" /> Risk Ranked Work Recommendations
-                </h2>
-                <div className="space-y-3">
-                  {workOrders.map((order) => (
-                    <div key={order.id} className={`border-2 rounded-lg p-3 ${getRiskColor(order.risk)}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-sm">{order.id}</p>
-                          <p className="text-xs opacity-75">{order.location}</p>
-                        </div>
-                        <span className="text-xs font-semibold uppercase">{order.risk}</span>
+              <div className="bg-white rounded-lg shadow p-6 relative" style={{zIndex: showSensorDetails ? 1300 : 'auto'}}>
+                {selectedSensor && showSensorDetails ? (
+                  <>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h2 className="text-xl font-bold">{selectedSensor.name}</h2>
+                        <p className="text-sm text-gray-600">{selectedSensor.id} &middot; Live Snapshot</p>
                       </div>
-                      <p className="text-sm font-medium mb-1">{order.issue}</p>
-                      <div className="flex justify-between text-xs mb-2">
-                        <span>Impact: {order.impact}</span><span>ETA: {order.eta}</span>
-                      </div>
-                      {order.confidence && (
-                        <>
-                          <div className="mt-2 bg-gray-200 rounded-full h-1.5">
-                            <div className="h-1.5 rounded-full" style={{width: `${order.confidence}%`, backgroundColor: BRAND_COLORS.primary}} />
-                          </div>
-                          <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
-                        </>
-                      )}
+                      <button onClick={closeDetails} className="text-sm underline shrink-0" style={{color: BRAND_COLORS.primary}}>
+                        Back
+                      </button>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-blink" />
+                      <span className="text-sm font-semibold text-green-700">Online</span>
+                      <span className="text-sm text-gray-500">&middot; Last measurement {snapshot.lastMeasurement}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Head Height</p><p className="text-lg font-bold">{selectedSensor.headHeight} ft</p></div>
+                      <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Flow Rate</p><p className="text-lg font-bold">{selectedSensor.flow} L/s</p></div>
+                      <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Capacity</p><p className="text-lg font-bold">{selectedSensor.capacity}%</p></div>
+                      <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Sensor Temperature</p><p className="text-lg font-bold">{snapshot.sensorTemp} °C</p></div>
+                      <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Battery</p><p className="text-lg font-bold">{selectedSensor.battery}%</p></div>
+                      <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-600">Signal</p><p className="text-lg font-bold">{snapshot.signal}</p></div>
+                    </div>
+                    <div className="mt-4 space-y-2 text-sm">
+                      <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Reporting Interval</span><span className="font-medium">{snapshot.interval}</span></div>
+                      <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Last Maintenance</span><span className="font-medium">{snapshot.lastMaintenance}</span></div>
+                      <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Firmware</span><span className="font-medium">{snapshot.firmware}</span></div>
+                    </div>
+                    <button onClick={()=>setShowWeeklyTrend(!showWeeklyTrend)}
+                            className="w-full mt-4 text-sm font-semibold text-white px-4 py-2.5 rounded-lg transition duration-200"
+                            style={{backgroundColor: showWeeklyTrend ? BRAND_COLORS.dark : BRAND_COLORS.primary}}
+                            onMouseOver={(e)=>e.currentTarget.style.backgroundColor = BRAND_COLORS.dark}
+                            onMouseOut={(e)=>e.currentTarget.style.backgroundColor = showWeeklyTrend ? BRAND_COLORS.dark : BRAND_COLORS.primary}>
+                      {showWeeklyTrend ? 'Hide Weekly Trend' : 'Weekly Trend'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold mb-4 flex items-center">
+                      <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" /> Risk Ranked Work Recommendations
+                    </h2>
+                    <div className="space-y-3">
+                      {workOrders.map((order) => (
+                        <div key={order.id} className={`border-2 rounded-lg p-3 ${getRiskColor(order.risk)}`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-bold text-sm">{order.id}</p>
+                              <p className="text-xs opacity-75">{order.location}</p>
+                            </div>
+                            <span className="text-xs font-semibold uppercase">{getRiskLabel(order.risk)}</span>
+                          </div>
+                          <p className="text-sm font-medium mb-1">{order.issue}</p>
+                          <div className="flex justify-between text-xs mb-2">
+                            <span>Impact: {order.impact}</span><span>ETA: {order.eta}</span>
+                          </div>
+                          {order.confidence && (
+                            <>
+                              <div className="mt-2 bg-gray-200 rounded-full h-1.5">
+                                <div className="h-1.5 rounded-full" style={{width: `${order.confidence}%`, backgroundColor: BRAND_COLORS.primary}} />
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">Confidence: {order.confidence}%</p>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
+
+              {selectedSensor && showSensorDetails && showWeeklyTrend && (
+                <div className="absolute top-0 left-0 w-full lg:w-2/3" style={{zIndex: 1300}}>
+                  <div className="bg-white rounded-lg shadow-2xl p-6" style={{minHeight: '100%'}}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h2 className="text-xl font-bold">Weekly Trend</h2>
+                        <p className="text-sm text-gray-600">{selectedSensor.id} &middot; {selectedSensor.name} &middot; Past 7 days</p>
+                      </div>
+                      <button onClick={()=>setShowWeeklyTrend(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    <div className="space-y-4">
+                      <WeeklyTrendChart data={weekly} dataKey="headHeight" label="Head Height" unit="ft" />
+                      <WeeklyTrendChart data={weekly} dataKey="flow" label="Flow Rate" unit="L/s" />
+                      <WeeklyTrendChart data={weekly} dataKey="capacity" label="Capacity" unit="%" />
+                      <WeeklyTrendChart data={weekly} dataKey="sensorTemp" label="Sensor Temperature" unit="°C" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               <div className="bg-white rounded-lg shadow p-6"><SimpleLineChart data={historicalData} /></div>
-              <div className="bg-white rounded-lg shadow p-6"><SimpleBarChart data={historicalData} /></div>
+              <div className="bg-white rounded-lg shadow p-6"><RainfallChart data={historicalData} /></div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6 mt-6">
-              <h2 className="text-xl font-bold mb-4">Sensor Network Health</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                {sensorData.map((sensor) => (
-                  <div key={sensor.id} className={`p-4 rounded-lg border-2 ${sensor.error ? 'bg-red-50 border-red-300' : sensor.battery < 20 ? 'bg-yellow-50 border-yellow-300' : 'bg-green-50 border-green-300'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-bold text-sm">{sensor.id}</p>
-                      {sensor.error ? <AlertTriangle className="w-5 h-5 text-red-500" /> :
-                        <Battery className="w-5 h-5" level={sensor.battery} />}
-                    </div>
-                    <p className="text-xs text-gray-600 mb-1">{sensor.name}</p>
-                    {sensor.error ? (
-                      <p className="text-sm font-semibold text-red-600">SENSOR ERROR</p>
-                    ) : (
-                      <div>
-                        <p className="text-sm font-semibold">{sensor.battery}%</p>
-                        <div className="mt-1 bg-gray-200 rounded-full h-1.5">
-                          <div className={`${sensor.battery > 50 ? 'bg-green-500' : sensor.battery > 20 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{width: `${sensor.battery}%`, height:'6px', borderRadius:'9999px'}} />
-                        </div>
+              <button onClick={()=>setShowNetworkHealth(!showNetworkHealth)}
+                      className="w-full flex items-center justify-between cursor-pointer">
+                <div className="flex items-baseline space-x-3">
+                  <h2 className="text-xl font-bold">Sensor Network Health</h2>
+                  <span className="text-sm text-gray-500">{sensorData.length} sensors &middot; all reporting</span>
+                </div>
+                <svg className={`w-6 h-6 text-gray-500 transition-transform duration-200 ${showNetworkHealth ? 'rotate-180' : ''}`}
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {showNetworkHealth && (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mt-4">
+                  {sensorData.map((sensor) => (
+                    <div key={sensor.id} className={`p-4 rounded-lg border-2 ${sensor.error ? 'bg-red-50 border-red-300' : sensor.battery < 20 ? 'bg-yellow-50 border-yellow-300' : 'bg-green-50 border-green-300'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-bold text-sm">{sensor.id}</p>
+                        {sensor.error ? <AlertTriangle className="w-5 h-5 text-red-500" /> :
+                          <Battery className="w-5 h-5" level={sensor.battery} />}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      <p className="text-xs text-gray-600 mb-1">{sensor.name}</p>
+                      {sensor.error ? (
+                        <p className="text-sm font-semibold text-red-600">SENSOR ERROR</p>
+                      ) : (
+                        <div>
+                          <p className="text-sm font-semibold">{sensor.battery}%</p>
+                          <div className="mt-1 bg-gray-200 rounded-full h-1.5">
+                            <div className={`${sensor.battery > 50 ? 'bg-green-500' : sensor.battery > 20 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{width: `${sensor.battery}%`, height:'6px', borderRadius:'9999px'}} />
+                          </div>
+                          <p className="text-xs text-gray-600 mt-2">Signal: <span className="font-medium text-gray-800">{getSensorSnapshot(sensor).signal}</span></p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </main>
         </div>
