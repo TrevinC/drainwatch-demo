@@ -429,12 +429,12 @@
       <header className="text-white shadow-lg bg-sky-600">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center sm:flex-row sm:items-center sm:space-x-6">
+            <div className="flex items-center space-x-6">
               {/* New CRIO Systems Horizontal Logo */}
               <img src="./CRIO_Lockup Horizontal_Light.png" alt="CRIO Systems Logo" className="h-10"
                    onError={(e) => e.currentTarget.style.display='none'} />
 
-              <div className="flex items-center space-x-3 border-t border-white/30 pt-2 mt-2 sm:border-t-0 sm:pt-0 sm:mt-0 sm:border-l sm:pl-6">
+              <div className="hidden sm:flex items-center space-x-3 border-l border-white/30 pl-6">
                 <img src="./DrainWatch Logo 04.2026.png" alt="DrainWatch Logo" className="h-8"
                      onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }} />
                 <svg style={{display:'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
