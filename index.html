@@ -17,7 +17,7 @@
   <!-- Tailwind CDN (fine for demo) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <link rel="icon" href="./Drain Watch Logo.png" type="image/png" />
+  <link rel="icon" href="./DrainWatch Logo 04.2026.png" type="image/png" />
 
   <style>
     @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.3; } }
@@ -40,7 +40,6 @@
     // Demo users/roles
     const USERS = {
       'Hult': { password: 'CRIO', role: 'dashboard', name: 'Hult' },
-      'Lab':    { password: 'IIT', role: 'flume',     name: 'Lab' },
       'Wabash':   { password: 'IIT', role: 'wabash',    name: 'Wabash' }
     };
 
@@ -118,13 +117,6 @@
       { time: '20:00', capacity: Math.round(avgCapacity * 0.93), flow: 38 },
       { time: 'Now',   capacity: Math.round(avgCapacity),         flow: 40 },
     ];
-    const performanceData = [
-      { metric: 'Incidents Prevented', value: '127',   change: '+82%', trend: 'up' },
-      { metric: 'Flooding Events',     value: '3',     change: '-67%', trend: 'down' },
-      { metric: 'Maintenance Cost',    value: '$42K',  change: '-38%', trend: 'down' },
-      { metric: 'CSO Volume Reduction',value: '220M gal', change: '-32%', trend: 'down' },
-    ];
-
     // -------- Simple SVG charts --------
     const SimpleLineChart = ({ data }) => {
       const maxValue = 100, minValue = 0;
@@ -216,13 +208,12 @@
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
-                <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-16"
+                <img src="./DrainWatch Logo 04.2026.png" alt="DrainWatch Logo" className="h-16"
                      onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='block'; }} />
                 <svg style={{display:'none'}} className="w-16 h-16" fill="none" stroke={BRAND_COLORS.primary} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                 </svg>
               </div>
-              <h1 className="text-3xl font-bold text-gray-800">DrainWatch</h1>
               <p className="text-gray-600 mt-2">Climate-Resilient Infrastructure Operations</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -252,7 +243,6 @@
                 <div className="mt-4 rounded-lg p-4 text-xs space-y-2" style={{backgroundColor: BRAND_COLORS.light}}>
                   <div className="font-semibold text-gray-700 mb-2">Available Logins:</div>
                   <div><span className="font-medium">Hult -</span> Password : CRIO</div>
-                  <div><span className="font-medium">Lab:</span> Password : IIT</div>
                   <div><span className="font-medium">Wabash:</span> Password : IIT</div>
                 </div>
               )}
@@ -278,12 +268,11 @@
                    onError={(e) => e.currentTarget.style.display='none'} />
               
               <div className="flex items-center space-x-3 border-l border-white/30 pl-6">
-                <img src="./Drain Watch Logo.png" alt="DrainWatch Logo" className="h-8"
+                <img src="./DrainWatch Logo 04.2026.png" alt="DrainWatch Logo" className="h-8"
                      onError={(e)=>{ e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }} />
                 <svg style={{display:'none'}} className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                 </svg>
-                <h1 className="text-2xl font-bold">DrainWatch</h1>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -316,21 +305,6 @@
         <div className="min-h-screen bg-gray-50">
           <DashboardHeader user={user} onLogout={onLogout} />
           <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {performanceData.map((item, idx) => (
-                <div key={idx} className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">{item.metric}</p>
-                      <p className="text-2xl font-bold mt-1">{item.value}</p>
-                    </div>
-                    <TrendingUp className={`w-8 h-8 ${item.trend === 'down' || item.metric === 'Incidents Prevented' ? 'text-green-500' : 'text-red-500'} ${item.trend === 'down' && item.metric !== 'Incidents Prevented' ? 'rotate-180' : ''}`} />
-                  </div>
-                  <p className={`text-sm mt-2 ${item.trend === 'down' || item.metric === 'Incidents Prevented' ? 'text-green-600' : 'text-blue-600'}`}>{item.change} vs last month</p>
-                </div>
-              ))}
-            </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-bold mb-4">Live Network Status</h2>
